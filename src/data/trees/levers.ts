@@ -1,0 +1,192 @@
+import { hold, holdEach, reps } from '../targets';
+import type { TreeDef } from '../types';
+
+export const levers: TreeDef = {
+  id: 'levers',
+  name: 'Levers',
+  tagline: 'Front lever, back lever and the human flag.',
+  color: '#1098ad',
+  tracks: [
+    {
+      id: 'front-lever',
+      name: 'Front Lever',
+      from: ['pullup', 'hollow-body-hold'],
+      steps: [
+        {
+          id: 'tuck-front-lever',
+          name: 'Tuck Front Lever',
+          level: 4,
+          target: hold(3, 15),
+          description:
+            'Hang from a bar and pull your body up until it is horizontal, with your knees tucked to your chest.',
+          cues: [
+            'Arms straight, pull the bar down toward your hips',
+            'Back parallel to the floor',
+            'Shoulder blades squeezed down and back',
+          ],
+        },
+        {
+          id: 'advanced-tuck-front-lever',
+          name: 'Advanced Tuck Front Lever',
+          level: 5,
+          target: hold(3, 10),
+          description: 'Tuck front lever with a flat back and your hips opened to 90°.',
+          cues: ['Flat back, not rounded', 'Knees away from your chest', 'Hips level with your shoulders'],
+        },
+        {
+          id: 'one-leg-front-lever',
+          name: 'One-leg Front Lever',
+          level: 6,
+          target: holdEach(3, 8),
+          description: 'One leg extended straight and the other tucked. Swap legs between sets.',
+          cues: ['Extended leg level with your body', 'Hips stay up', 'Alternate legs'],
+        },
+        {
+          id: 'straddle-front-lever',
+          name: 'Straddle Front Lever',
+          level: 7,
+          target: hold(3, 8),
+          description: 'Both legs straight and wide, body horizontal.',
+          cues: ['Legs wide, toes pointed', 'Squeeze your glutes', 'Pull the bar toward your hips'],
+        },
+        {
+          id: 'full-front-lever',
+          name: 'Full Front Lever',
+          level: 9,
+          target: hold(3, 5),
+          description: 'Body straight, legs together, held horizontal under the bar.',
+          cues: ['One straight line from shoulders to toes', 'Arms locked', 'Hollow body throughout'],
+        },
+      ],
+    },
+    {
+      id: 'front-lever-rows',
+      name: 'Front Lever Rows',
+      from: ['tuck-front-lever', 'feet-elevated-row'],
+      steps: [
+        {
+          id: 'tuck-front-lever-row',
+          name: 'Tuck Front Lever Row',
+          level: 5,
+          target: reps(3, 6),
+          description: 'From a tuck front lever, row the bar to your stomach while staying horizontal.',
+          cues: ['Hips stay level the whole rep', 'Pull to your lower chest', 'Lower slowly'],
+        },
+        {
+          id: 'advanced-tuck-front-lever-row',
+          name: 'Advanced Tuck FL Row',
+          level: 6,
+          target: reps(3, 6),
+          requires: ['advanced-tuck-front-lever'],
+          description: 'Front lever rows in the advanced tuck position.',
+          cues: ['Flat back', 'Keep your elbows close to your body', 'No hip drop at the bottom'],
+        },
+      ],
+    },
+    {
+      id: 'back-lever',
+      name: 'Back Lever',
+      from: ['hanging-knee-raise'],
+      steps: [
+        {
+          id: 'skin-the-cat',
+          name: 'Skin the Cat',
+          level: 3,
+          target: reps(3, 5),
+          description:
+            'From a hang, tuck and rotate backward between your arms until you hang upside down behind them, then come back.',
+          cues: [
+            'Go slowly; this stretches your shoulders hard',
+            'Only go as deep as is comfortable',
+            'Rings or a low bar are best',
+          ],
+        },
+        {
+          id: 'german-hang',
+          name: 'German Hang',
+          level: 3,
+          target: hold(3, 20),
+          description:
+            'Hold the bottom of a skin the cat. Prepares your shoulders and elbows for back lever work.',
+          cues: ['Relax into the stretch gradually', 'Keep your feet near the floor if possible', 'Breathe slowly'],
+        },
+        {
+          id: 'tuck-back-lever',
+          name: 'Tuck Back Lever',
+          level: 4,
+          target: hold(3, 15),
+          description: 'Face down under the bar with your back horizontal and knees tucked.',
+          cues: ['Arms straight, palms facing back', 'Back parallel to the floor', 'Push the bar down'],
+        },
+        {
+          id: 'advanced-tuck-back-lever',
+          name: 'Advanced Tuck Back Lever',
+          level: 5,
+          target: hold(3, 10),
+          description: 'Tuck back lever with a flat back and your hips opened.',
+          cues: ['Flat back', 'Hips extended to 90°', 'Body level'],
+        },
+        {
+          id: 'straddle-back-lever',
+          name: 'Straddle Back Lever',
+          level: 6,
+          target: hold(3, 8),
+          description: 'Back lever with straight legs spread wide.',
+          cues: ['Squeeze your glutes', 'Legs wide and locked', 'Keep your hips from sagging'],
+        },
+        {
+          id: 'full-back-lever',
+          name: 'Full Back Lever',
+          level: 8,
+          target: hold(3, 8),
+          description: 'A straight body held horizontal, face down, under the bar.',
+          cues: ['Legs together', 'One straight line', 'Lean your chest forward slightly'],
+        },
+      ],
+    },
+    {
+      id: 'human-flag',
+      name: 'Human Flag',
+      from: ['side-plank', 'pullup', 'pike-pushup'],
+      steps: [
+        {
+          id: 'vertical-flag',
+          name: 'Vertical Flag',
+          level: 4,
+          target: holdEach(3, 10),
+          description:
+            'Grip a vertical pole with your top arm pulling and your bottom arm pushing, and hold your body upright beside it.',
+          cues: [
+            'Hands a bit wider than shoulder width',
+            'Top arm pulls, bottom arm pushes',
+            'Bottom arm locked straight',
+          ],
+        },
+        {
+          id: 'tuck-flag',
+          name: 'Tuck Human Flag',
+          level: 6,
+          target: holdEach(3, 8),
+          description: 'Flag position with your knees tucked, body horizontal.',
+          cues: ['Push hard with your bottom arm', 'Hips up to the level of your hands', 'Shoulders stacked'],
+        },
+        {
+          id: 'straddle-flag',
+          name: 'Straddle Flag',
+          level: 7,
+          target: holdEach(3, 5),
+          description: 'Human flag with straight legs spread wide.',
+          cues: ['Legs wide and straight', 'Squeeze your obliques', 'Keep your body facing forward'],
+        },
+        {
+          id: 'human-flag',
+          name: 'Human Flag',
+          level: 9,
+          target: holdEach(3, 5),
+          description: 'The full human flag: body straight and horizontal off a vertical pole.',
+          cues: ['Legs together', 'Body in one line', 'Train both sides'],
+        },
+      ],
+    },
+  ],
+};

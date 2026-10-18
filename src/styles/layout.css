@@ -1,0 +1,245 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+}
+
+.app-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app--trees .app-main {
+  overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: none;
+  height: var(--header-h);
+  padding: 0 20px;
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.top-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.top-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+
+.top-nav__link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.top-nav__link[aria-current='page'] {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.header-progress {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+.header-progress strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+/* ---------- Bottom nav (phones) ---------- */
+
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .top-nav {
+    display: none;
+  }
+
+  .bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    flex: none;
+    height: calc(var(--bottomnav-h) + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .bottom-nav__link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--text-3);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .bottom-nav__link[aria-current='page'] {
+    color: var(--accent);
+  }
+}
+
+/* ---------- Pages ---------- */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.page--narrow {
+  max-width: 760px;
+}
+
+.page-header {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: 16px 16px 32px;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 767px) {
+  .card {
+    padding: 16px;
+  }
+}
+
+/* ---------- Toast ---------- */
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 100;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  box-shadow: var(--shadow);
+  text-align: left;
+  pointer-events: auto;
+  animation: toast-in 0.25s ease-out;
+}
+
+.toast svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold);
+}
+
+.toast strong {
+  display: block;
+}
+
+.toast__body {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (max-width: 767px) {
+  .toast-region {
+    bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 12px);
+  }
+
+  /* Above the bottom sheet when a skill is open. */
+  body:has(.detail) .toast-region {
+    bottom: auto;
+    top: calc(var(--header-h) + 12px);
+  }
+}

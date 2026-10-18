@@ -1,0 +1,596 @@
+.trees-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---------- Tree tabs ---------- */
+
+.tree-tabs {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  padding: 10px 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tree-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tree-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tree-tab:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.tree-tab[aria-current='page'] {
+  border-color: var(--tree, var(--accent));
+  background: color-mix(in srgb, var(--tree, var(--accent)) 18%, var(--surface));
+  color: var(--text);
+}
+
+.tree-tab__count {
+  color: var(--text-3);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Toolbar ---------- */
+
+.trees-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: none;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trees-toolbar__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.trees-toolbar h1 {
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.trees-toolbar p {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: 0.8rem;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.legend__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid var(--text-3);
+}
+
+.legend__swatch.is-mastered {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.legend__swatch.is-available {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.legend__swatch.is-locked {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.legend__swatch.is-goal {
+  border-color: var(--gold);
+  border-style: dashed;
+}
+
+@media (max-width: 1100px) {
+  .legend {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .tree-tabs,
+  .trees-toolbar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .trees-toolbar {
+    gap: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .trees-toolbar h1 {
+    font-size: 1.05rem;
+  }
+
+  .trees-toolbar p {
+    font-size: 0.78rem;
+  }
+
+  .segmented button {
+    padding: 0 10px;
+  }
+}
+
+/* ---------- Map ---------- */
+
+.trees-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.skill-map {
+  position: absolute;
+  inset: 0;
+}
+
+.skill-map .react-flow {
+  --xy-background-color: var(--bg);
+  --xy-background-pattern-color: #232a38;
+  --xy-attribution-background-color: transparent;
+  --xy-controls-button-background-color: var(--surface-2);
+  --xy-controls-button-background-color-hover: var(--surface-3);
+  --xy-controls-button-color: var(--text-2);
+  --xy-controls-button-color-hover: var(--text);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: none;
+}
+
+.skill-map .react-flow__attribution a {
+  color: var(--text-3);
+}
+
+.map-controls {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .map-controls {
+    display: none;
+  }
+}
+
+/* React Flow wraps our node; give the wrapper no chrome of its own. */
+.skill-map .react-flow__node {
+  border-radius: 14px;
+}
+
+.skill-map .react-flow__node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skill-map .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Skill node ---------- */
+
+.skill-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s,
+    transform 0.15s;
+}
+
+.skill-node:hover {
+  transform: translateY(-2px);
+}
+
+.skill-node__top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-node__level {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tree) 22%, transparent);
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.skill-node__goal {
+  color: var(--gold);
+  fill: var(--gold);
+}
+
+.skill-node__status {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.skill-node__name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.skill-node__target {
+  color: var(--text-2);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.skill-node__bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 7px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.skill-node__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.skill-node.is-mastered {
+  border-color: var(--tree);
+  background: color-mix(in srgb, var(--tree) 26%, var(--surface));
+}
+
+.skill-node.is-available {
+  border-color: var(--tree);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--tree) 22%, transparent),
+    0 0 24px color-mix(in srgb, var(--tree) 30%, transparent);
+}
+
+.skill-node.is-locked {
+  border-style: dashed;
+  background: var(--bg);
+}
+
+.skill-node.is-locked .skill-node__name {
+  color: var(--text-2);
+}
+
+.skill-node.is-locked .skill-node__level {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.skill-node.on-path {
+  border-color: var(--gold);
+}
+
+.skill-node.is-goal {
+  border-color: var(--gold);
+  border-style: solid;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+
+.skill-node.is-selected {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+.skill-node.is-ghost {
+  gap: 4px;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--tree) 60%, transparent);
+  background: var(--bg);
+  box-shadow: none;
+}
+
+.skill-node__from {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.skill-node.is-ghost .skill-node__name {
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+/* ---------- Tree clusters ("All" view) ---------- */
+
+.skill-map .react-flow__node-cluster {
+  pointer-events: none;
+}
+
+.cluster-node {
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid color-mix(in srgb, var(--tree) 45%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--tree) 6%, transparent);
+}
+
+.cluster-node__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0 16px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cluster-node__count {
+  color: var(--text-3);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Edges ---------- */
+
+.skill-map .react-flow__edge-path {
+  stroke-width: 1.5;
+}
+
+.skill-map .edge-locked .react-flow__edge-path {
+  stroke: #343b4b;
+  stroke-dasharray: 4 5;
+}
+
+.skill-map .edge-ready .react-flow__edge-path {
+  stroke: var(--edge);
+  stroke-width: 2;
+}
+
+.skill-map .edge-mastered .react-flow__edge-path {
+  stroke: var(--edge);
+  stroke-width: 2.5;
+}
+
+.skill-map .edge-goal .react-flow__edge-path {
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+
+/* ---------- List view ---------- */
+
+.skill-list {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.skill-list__tree + .skill-list__tree {
+  margin-top: 28px;
+}
+
+.skill-list__heading {
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+}
+
+.skill-list__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .trees-body.has-detail .skill-list {
+    padding-right: 440px;
+  }
+}
+
+@media (max-width: 767px) {
+  .skill-list {
+    padding: 16px;
+  }
+
+  .trees-body.has-detail .skill-list {
+    padding-bottom: 62dvh;
+  }
+
+  .skill-list__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.track-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--tree);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.track-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.track-card h3 {
+  font-size: 1rem;
+}
+
+.track-card__count {
+  color: var(--text-3);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.track-card__needs {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
+.track-card__needs a {
+  color: var(--text-2);
+}
+
+.track-steps {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The vertical progression line behind the step icons. */
+.track-steps::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 19px;
+  width: 2px;
+  background: var(--surface-3);
+}
+
+.track-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.track-step:hover {
+  background: var(--surface-2);
+}
+
+.track-step.is-selected {
+  background: var(--surface-3);
+}
+
+.track-step__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.track-step.is-mastered .track-step__icon {
+  border-color: var(--tree);
+  background: color-mix(in srgb, var(--tree) 35%, var(--surface));
+}
+
+.track-step.is-available .track-step__icon {
+  border-color: var(--accent);
+}
+
+.track-step__main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.track-step__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.track-step.is-locked .track-step__name {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.track-step__goal {
+  color: var(--gold);
+  fill: var(--gold);
+}
+
+.track-step__extra {
+  color: var(--text-3);
+  font-size: 0.75rem;
+}
+
+.track-step__target {
+  flex: none;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
