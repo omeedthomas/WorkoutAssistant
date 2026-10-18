@@ -102,7 +102,12 @@ export function useActiveWorkout() {
 
   return {
     active,
-    start: (w: Workout) => setActive(snapshot(w)),
+    /** Starts the workout and returns the snapshot (its `startedAt` identifies it). */
+    start: (w: Workout) => {
+      const started = snapshot(w);
+      setActive(started);
+      return started;
+    },
     end: () => setActive(null),
     toggleDrill: (id: string) =>
       setActive((w) =>

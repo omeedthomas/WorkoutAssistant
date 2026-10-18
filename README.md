@@ -45,7 +45,11 @@ lever needs pull-ups **and** a hollow body hold (Core).
   in the last day). The Workout page also suggests weekly schedules for 2–5 days a week.
 - **Goals:** pick up to 5. Their full path is highlighted in gold, and *Today's session* prioritises it.
 - **Today's session:** one unlocked exercise per movement pattern, goal paths first.
-- **No account:** progress is saved in `localStorage`. You can export and import a JSON backup in Settings.
+- **Google sign-in, saved to your own Google Drive (optional):** progress goes to
+  `My Drive/Ascent/`, with a readable file per training day in `Ascent/workouts/`, so you can use it on
+  any device. It also stays in the browser, so the app works offline and without an account. See
+  [Accounts](#accounts-google-sign-in--google-drive) below to switch it on. You can always export and
+  import a JSON backup in Settings.
 
 ## Running it
 
@@ -62,6 +66,77 @@ npm run check:videos  # confirms every how-to video still exists and allows embe
 
 `dist/` is a static site. Host it anywhere (Netlify, Vercel, GitHub Pages, or any static server). It uses hash
 routing (`#/trees/push/pushup`), so no server rewrites are needed.
+
+## Accounts (Google sign-in + Google Drive)
+
+People sign in with Google, and their progress is saved in **their own Google Drive**. There's no
+database or server of ours. Until a client id is configured (below), the app runs local-only and hides
+the sign-in button.
+
+```
+My Drive/
+  Ascent/
+    progress.json                       mastered skills, goals
+    workouts/
+      2026-10-16 Training.json          one file per training day…
+      2026-10-18 Push + Pull.json       …named after that day's workout
+```
+
+Each day file is readable JSON: the workout(s) you started and every set you logged (exercise name, sets,
+reps or seconds, and what was planned). Files are tracked by hidden app properties, so renaming or moving
+them in Drive is fine. Edits you make to them are picked up on the next sync. Days you delete in the app
+go to the Drive trash.
+
+Ascent asks only for the **`drive.file`** permission, so it can see and change only the files it created,
+never the rest of anyone's Drive. Google classes this as a non-sensitive scope.
+
+### Set it up (about 10 minutes, free)
+
+1. **Create a Google Cloud project** at [console.cloud.google.com](https://console.cloud.google.com)
+   (project menu → *New project*, e.g. "Ascent").
+2. **Turn on the Drive API:** *APIs & Services → Library → Google Drive API → Enable*.
+3. **Configure the consent screen** (*Google Auth Platform*, or *APIs & Services → OAuth consent
+   screen*):
+   - *Branding:* app name "Ascent" and a support email.
+   - *Audience:* External. While the app is in **Testing**, add yourself and anyone else who'll try it
+     under *Test users*.
+   - *Data access:* add the scopes `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` and
+     `.../auth/drive.file`.
+4. **Create the OAuth client:** *Clients* (or *Credentials*) *→ Create client → Web application*. Under
+   **Authorized JavaScript origins**, add `http://localhost:5173` and, later, your site's HTTPS address.
+   Redirect URIs aren't needed.
+5. **Add the client id:** copy `.env.example` to `.env.local` and set
+   `VITE_GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com`. The id isn't secret, and
+   `.env.local` is gitignored anyway.
+6. **Restart** `npm run dev`. A *Sign in* button appears in the header and in Settings.
+7. **When you're ready for others:** deploy the `dist/` folder to any HTTPS static host (Netlify,
+   Vercel, Cloudflare Pages, GitHub Pages…), add that address to the authorized JavaScript origins, and
+   *Publish* the app on the Audience page. Until then, only the listed test users can sign in.
+
+Sign-in needs `localhost` or HTTPS. To test on your phone, use the deployed site rather than
+`http://<your-LAN-IP>`.
+
+### How syncing works (`src/cloud/`)
+
+- **First sign-in:** anything already on the device is uploaded. If the Drive already has Ascent data
+  (from another device), the two are **merged**: mastered skills, sessions, goals and workouts from both,
+  with nothing lost.
+- **After that:** each change writes only the files that changed (usually just today's) a moment after
+  you make it. Coming back to the app re-reads Drive to pick up your other devices' changes. Only files
+  changed since the last sync are downloaded.
+- **Access lasts about an hour.** A browser app with no server only gets short-lived Google access. When
+  it expires, everything keeps working and saving on the device, and the header shows **Reconnect**.
+  One tap renews access (usually without any prompt) and uploads what's waiting. A small backend that
+  stores refresh tokens would remove this step, if you ever want one.
+- **Offline:** changes stay on the device and upload when you're back. If you close the app first,
+  they're merged on your next visit.
+- **Signing out** clears this device's copy, so the next person who uses the browser starts fresh.
+  Everything stays in your Drive.
+
+**Trying it without Google:** run `VITE_CLOUD_MOCK=true npm run dev` (PowerShell:
+`$env:VITE_CLOUD_MOCK='true'; npm run dev`). This gives you a fake "Test User" whose "Drive" is
+`localStorage`. Set `localStorage['ascent:mock-expired'] = '1'` to try the Reconnect flow. It's
+development only and never included in production builds.
 
 ## Project layout
 
@@ -81,9 +156,17 @@ src/
     workout.ts        Daily workout generator and suggested training day
     layout.ts         dagre layout for the map (plus "ghost" nodes for prerequisites in other trees)
     router.ts         Tiny hash router
+  cloud/
+    drive.ts          Google sign-in (Identity Services) + access tokens
+    driveStore.ts     Google Drive files: Ascent/, progress.json, workouts/<day> <workout>.json
+    documents.ts      Progress ⇄ documents (one per training day), and the minimal diff
+    syncEngine.ts     Reconcile on sign-in, push changes, pull other devices' changes, reconnect
+    merge.ts          Lossless merge of two copies of progress
+    mock.ts           Dev-only fake accounts
   state/
     progress.ts       Pure reducer, validation of stored/imported data
     ProgressContext   React context + localStorage persistence (synced across tabs)
+    CloudContext      Account state, sync status, sign in/out
   components/         SkillMap (React Flow), SkillNode, SkillList, SkillDetail, nav, toast…
   pages/              Train, Trees, Starting point, Settings
   styles/             Plain CSS with design tokens in base.css
@@ -136,5 +219,5 @@ exercise needs a video entry, or `npm test` will fail.
 
 ## Stack
 
-React 19, TypeScript, Vite, [React Flow](https://reactflow.dev) (`@xyflow/react`) for the map,
+React 19, TypeScript, Vite, Google Identity Services + the Google Drive API for accounts, [React Flow](https://reactflow.dev) (`@xyflow/react`) for the map,
 [dagre](https://github.com/dagrejs/dagre) for automatic layout, lucide icons, and Vitest.

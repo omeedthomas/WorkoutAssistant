@@ -54,7 +54,7 @@ interface MainItem {
 }
 
 export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
-  const { state } = useProgress();
+  const { state, recordWorkout } = useProgress();
   const session = useActiveWorkout();
   const suggestion = useMemo(() => suggestSplit(state), [state]);
 
@@ -169,7 +169,13 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
             <button
               className="btn btn--primary btn--lg"
               onClick={() => {
-                session.start(workout);
+                const started = session.start(workout);
+                recordWorkout({
+                  title: focusTitle(workout.focus),
+                  focus: workout.focus,
+                  length: workout.length,
+                  startedAt: started.startedAt,
+                });
                 scrollToTop();
               }}
             >
@@ -471,11 +477,13 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
 
 function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWorkout> }) {
   const toast = useToast();
+  const { finishWorkout, removeWorkout } = useProgress();
   const active = session.active!;
   const { done, total } = workoutProgress(active);
   const logged = active.main.filter((m) => m.logged).length;
 
   const finish = () => {
+    finishWorkout(active.startedAt);
     session.end();
     toast(
       done === total ? 'Workout complete!' : 'Workout finished',
@@ -485,7 +493,10 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
   };
 
   const discard = () => {
-    if (window.confirm('Discard this workout? Anything you already logged stays in your history.')) session.end();
+    if (!window.confirm('Discard this workout? Anything you already logged stays in your history.')) return;
+    // Nothing done: forget the workout entirely. Otherwise keep it, unfinished, alongside what was logged.
+    if (logged === 0) removeWorkout(active.startedAt);
+    session.end();
   };
 
   const main: MainItem[] = active.main.map((m) => ({ ...m, exercise: exerciseById[m.exerciseId] }));

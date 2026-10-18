@@ -8,13 +8,16 @@ import './styles/detail.css';
 import './styles/pages.css';
 import App from './App';
 import { ToastProvider } from './components/Toast';
+import { CloudProvider } from './state/CloudContext';
 import { ProgressProvider } from './state/ProgressContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ProgressProvider>
       <ToastProvider>
-        <App />
+        <CloudProvider>
+          <App />
+        </CloudProvider>
       </ToastProvider>
     </ProgressProvider>
   </StrictMode>,

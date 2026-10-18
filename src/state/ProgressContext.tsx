@@ -3,10 +3,12 @@ import type { Exercise } from '../data';
 import { missingAncestors, newlyUnlocked, withAncestors } from '../lib/graph';
 import {
   initialProgress,
+  localDay,
   makeId,
   progressReducer,
   sanitizeProgress,
   type ProgressState,
+  type WorkoutRecord,
 } from './progress';
 
 const STORAGE_KEY = 'ascent:progress:v1';
@@ -33,6 +35,10 @@ export interface ProgressApi {
   /** For each chosen exercise, mastered = it + its ancestors; `unmaster` is cleared first. */
   applyStartingPoint: (chosen: string[], unmaster: string[]) => void;
   setOnboarded: () => void;
+  /** Records a workout started from the Workout page (filed under its day). */
+  recordWorkout: (record: WorkoutRecord) => void;
+  finishWorkout: (startedAt: string) => void;
+  removeWorkout: (startedAt: string) => void;
   reset: () => void;
   importState: (raw: unknown) => boolean;
 }
@@ -79,7 +85,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       },
       unmaster: (id) => dispatch({ type: 'unmaster', id }),
       log(id, sets, value, planned) {
-        const entry = { id: makeId(), date: now(), sets, value, ...(planned && { planned }) };
+        const date = now();
+        const entry = { id: makeId(), date, day: localDay(date), sets, value, ...(planned && { planned }) };
         dispatch({ type: 'log', exerciseId: id, entry });
         return entry.id;
       },
@@ -88,6 +95,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       applyStartingPoint: (chosen, unmaster) =>
         dispatch({ type: 'applyStartingPoint', master: withAncestors(chosen), unmaster, at: now() }),
       setOnboarded: () => dispatch({ type: 'setOnboarded' }),
+      recordWorkout: (record) => dispatch({ type: 'recordWorkout', day: localDay(record.startedAt), record }),
+      finishWorkout: (startedAt) =>
+        dispatch({ type: 'finishWorkout', day: localDay(startedAt), startedAt, at: now() }),
+      removeWorkout: (startedAt) => dispatch({ type: 'removeWorkout', day: localDay(startedAt), startedAt }),
       reset: () => dispatch({ type: 'reset' }),
       importState(raw) {
         const next = sanitizeProgress(raw);

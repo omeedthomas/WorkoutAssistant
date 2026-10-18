@@ -2,6 +2,7 @@ import { Dumbbell, House, Network, Settings } from 'lucide-react';
 import { exercises } from '../data';
 import { lastTreeHref, type Route } from '../lib/router';
 import { useProgress } from '../state/ProgressContext';
+import { AccountButton } from './Account';
 
 const items = [
   { name: 'train', label: 'Home', href: () => '#/train', Icon: House },
@@ -55,8 +56,10 @@ export function Header({ route }: { route: Route }) {
         <NavLinks route={route} className="top-nav__link" />
       </nav>
       <div className="header-progress" title="Skills mastered">
-        <strong>{mastered}</strong> / {exercises.length} mastered
+        <strong>{mastered}</strong> / {exercises.length}
+        <span className="header-progress__label"> mastered</span>
       </div>
+      <AccountButton />
     </header>
   );
 }

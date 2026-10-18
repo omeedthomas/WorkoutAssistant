@@ -1,11 +1,14 @@
 import { useRef } from 'react';
 import { Download, RotateCcw, Target, Upload } from 'lucide-react';
+import { AccountSection } from '../components/Account';
 import { useToast } from '../components/Toast';
 import { exercises, tracks, trees } from '../data';
+import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
 
 export function SettingsPage() {
   const { state, reset, importState } = useProgress();
+  const cloud = useCloud();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -28,8 +31,10 @@ export function SettingsPage() {
     }
   };
 
+  const where = cloud.user ? 'on this device and in your account' : 'on this device';
+
   const confirmReset = () => {
-    if (window.confirm('Reset all progress? This deletes every mastered skill, logged session and goal on this device.')) {
+    if (window.confirm(`Reset all progress? This deletes every mastered skill, logged session and goal ${where}.`)) {
       reset();
       toast('Progress reset');
     }
@@ -40,6 +45,8 @@ export function SettingsPage() {
       <header className="page-header">
         <h1>Settings</h1>
       </header>
+
+      <AccountSection />
 
       <section className="card settings-section">
         <h2>Starting point</h2>
@@ -52,7 +59,9 @@ export function SettingsPage() {
       <section className="card settings-section">
         <h2>Your data</h2>
         <p className="muted small">
-          Progress is saved in this browser only. There's no account. Export a backup to move it to another device.
+          {cloud.user
+            ? 'Your progress is saved to your account and kept in this browser for offline use. You can also export a file backup.'
+            : "Progress is saved in this browser. Sign in to keep it in your account, or export a backup file to move it."}
         </p>
         <div className="button-row">
           <button className="btn" onClick={exportData}>
@@ -77,7 +86,7 @@ export function SettingsPage() {
 
       <section className="card settings-section settings-section--danger">
         <h2>Reset</h2>
-        <p className="muted small">Clear every mastered skill, logged session and goal.</p>
+        <p className="muted small">Clear every mastered skill, logged session and goal {where}.</p>
         <button className="btn btn--danger" onClick={confirmReset}>
           <RotateCcw size={16} aria-hidden /> Reset all progress
         </button>

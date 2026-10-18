@@ -1,14 +1,26 @@
-import { exerciseById } from '../data';
+import { exerciseById, treeById, type TreeId } from '../data';
+import type { WorkoutLength } from '../lib/workout';
 
 export interface LogEntry {
   id: string;
   /** ISO timestamp. */
   date: string;
+  /** The local calendar day it was logged on (YYYY-MM-DD), so every device files it under the same day. */
+  day?: string;
   sets: number;
   /** Reps or seconds achieved in each set. */
   value: number;
   /** What the app suggested for this session, so we can tell a hit from a miss. */
   planned?: { sets: number; value: number };
+}
+
+/** A workout started from the Workout page. */
+export interface WorkoutRecord {
+  title: string;
+  focus: TreeId[];
+  length: WorkoutLength;
+  startedAt: string;
+  finishedAt?: string;
 }
 
 export interface ProgressState {
@@ -19,10 +31,13 @@ export interface ProgressState {
   logs: Record<string, LogEntry[]>;
   goals: string[];
   onboarded: boolean;
+  /** Local day (YYYY-MM-DD) → workouts started that day. */
+  workouts: Record<string, WorkoutRecord[]>;
 }
 
 export const MAX_GOALS = 5;
-const MAX_LOGS_PER_EXERCISE = 100;
+/** Generous: older sessions beyond this would also drop out of the cloud copy. */
+export const MAX_LOGS_PER_EXERCISE = 500;
 
 export const initialProgress: ProgressState = {
   version: 1,
@@ -30,7 +45,15 @@ export const initialProgress: ProgressState = {
   logs: {},
   goals: [],
   onboarded: false,
+  workouts: {},
 };
+
+/** Local calendar day, e.g. "2026-10-18". */
+export function localDay(date: Date | string = new Date()): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 export type ProgressAction =
   | { type: 'master'; ids: string[]; at: string }
@@ -40,6 +63,9 @@ export type ProgressAction =
   | { type: 'toggleGoal'; id: string }
   | { type: 'applyStartingPoint'; master: string[]; unmaster: string[]; at: string }
   | { type: 'setOnboarded' }
+  | { type: 'recordWorkout'; day: string; record: WorkoutRecord }
+  | { type: 'finishWorkout'; day: string; startedAt: string; at: string }
+  | { type: 'removeWorkout'; day: string; startedAt: string }
   | { type: 'reset' }
   | { type: 'replace'; state: ProgressState };
 
@@ -47,6 +73,13 @@ function masterAll(mastered: Record<string, string>, ids: string[], at: string) 
   const next = { ...mastered };
   for (const id of ids) if (exerciseById[id] && !next[id]) next[id] = at;
   return next;
+}
+
+function setDayWorkouts(state: ProgressState, day: string, list: WorkoutRecord[]): ProgressState {
+  const workouts = { ...state.workouts };
+  if (list.length) workouts[day] = list;
+  else delete workouts[day];
+  return { ...state, workouts };
 }
 
 export function progressReducer(state: ProgressState, action: ProgressAction): ProgressState {
@@ -99,6 +132,28 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
     case 'setOnboarded':
       return state.onboarded ? state : { ...state, onboarded: true };
 
+    case 'recordWorkout': {
+      const list = state.workouts[action.day] ?? [];
+      if (list.some((w) => w.startedAt === action.record.startedAt)) return state;
+      return setDayWorkouts(state, action.day, [...list, action.record]);
+    }
+
+    case 'finishWorkout': {
+      const list = state.workouts[action.day];
+      if (!list) return state;
+      return setDayWorkouts(
+        state,
+        action.day,
+        list.map((w) => (w.startedAt === action.startedAt ? { ...w, finishedAt: action.at } : w)),
+      );
+    }
+
+    case 'removeWorkout': {
+      const list = state.workouts[action.day];
+      if (!list) return state;
+      return setDayWorkouts(state, action.day, list.filter((w) => w.startedAt !== action.startedAt));
+    }
+
     case 'reset':
       return { ...initialProgress, onboarded: state.onboarded };
 
@@ -112,9 +167,12 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const isPositive = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
 
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const LENGTHS: WorkoutLength[] = ['short', 'standard', 'long'];
+
 /**
- * Validates data loaded from storage or an import file. Unknown exercises
- * (e.g. removed from the catalog) are dropped rather than failing the load.
+ * Validates data loaded from storage, an import file or the cloud. Unknown
+ * exercises (e.g. removed from the catalog) are dropped rather than failing the load.
  */
 export function sanitizeProgress(raw: unknown): ProgressState | null {
   if (!isRecord(raw) || raw.version !== 1) return null;
@@ -135,6 +193,7 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
         if (!isRecord(l) || typeof l.id !== 'string' || typeof l.date !== 'string') continue;
         if (!isPositive(l.sets) || !isPositive(l.value)) continue;
         const entry: LogEntry = { id: l.id, date: l.date, sets: l.sets, value: l.value };
+        if (typeof l.day === 'string' && DAY_RE.test(l.day)) entry.day = l.day;
         const p = l.planned;
         if (isRecord(p) && isPositive(p.sets) && isPositive(p.value)) entry.planned = { sets: p.sets, value: p.value };
         valid.push(entry);
@@ -150,7 +209,28 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
       )
     : [];
 
-  return { version: 1, mastered, logs, goals, onboarded: raw.onboarded === true };
+  const workouts: Record<string, WorkoutRecord[]> = {};
+  if (isRecord(raw.workouts)) {
+    for (const [day, list] of Object.entries(raw.workouts)) {
+      if (!DAY_RE.test(day) || !Array.isArray(list)) continue;
+      const valid: WorkoutRecord[] = [];
+      for (const w of list) {
+        if (!isRecord(w) || typeof w.title !== 'string' || typeof w.startedAt !== 'string') continue;
+        if (!Array.isArray(w.focus) || !LENGTHS.includes(w.length as WorkoutLength)) continue;
+        const record: WorkoutRecord = {
+          title: w.title,
+          focus: w.focus.filter((t): t is TreeId => typeof t === 'string' && t in treeById),
+          length: w.length as WorkoutLength,
+          startedAt: w.startedAt,
+        };
+        if (typeof w.finishedAt === 'string') record.finishedAt = w.finishedAt;
+        valid.push(record);
+      }
+      if (valid.length) workouts[day] = valid;
+    }
+  }
+
+  return { version: 1, mastered, logs, goals, onboarded: raw.onboarded === true, workouts };
 }
 
 export function makeId(): string {

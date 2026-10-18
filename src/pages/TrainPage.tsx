@@ -11,7 +11,9 @@ import { splits } from '../data/splits';
 import { loadActiveWorkout, workoutProgress } from '../state/activeWorkout';
 import { focusTitle } from './WorkoutPage';
 import { MAX_GOALS } from '../state/progress';
+import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
+import { GoogleSignInButton } from '../components/Account';
 
 export function TrainPage() {
   const { state } = useProgress();
@@ -89,6 +91,7 @@ export function TrainPage() {
 
 function Welcome() {
   const { setOnboarded } = useProgress();
+  const cloud = useCloud();
   return (
     <section className="welcome">
       <div>
@@ -106,6 +109,11 @@ function Welcome() {
           I'm starting from scratch
         </button>
       </div>
+      {cloud.available && !cloud.user && cloud.ready && (
+        <p className="welcome__signin small">
+          Already have an account? <GoogleSignInButton compact />
+        </p>
+      )}
     </section>
   );
 }

@@ -80,6 +80,86 @@
   font-size: 1rem;
 }
 
+/* ---------- Account ---------- */
+
+.google-btn {
+  border-color: #dadce0;
+  background: #fff;
+  color: #1f1f1f;
+}
+
+.google-btn:hover {
+  background: #f1f3f4;
+}
+
+.account-btn {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+  text-decoration: none;
+}
+
+.account-btn--loading {
+  width: 30px;
+  height: 30px;
+  background: var(--surface-3);
+}
+
+.account-btn__sync {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--surface-3);
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar--initials {
+  background: color-mix(in srgb, var(--accent) 35%, var(--surface-3));
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sync-icon.is-synced {
+  color: var(--success);
+}
+
+.sync-icon.is-syncing {
+  color: var(--accent);
+}
+
+.sync-icon.is-offline {
+  color: var(--text-3);
+}
+
+.sync-icon.is-error {
+  color: var(--danger);
+}
+
+@media (max-width: 767px) {
+  .app-header {
+    gap: 12px;
+  }
+
+  .header-progress__label {
+    display: none;
+  }
+}
+
 /* ---------- Bottom nav (phones) ---------- */
 
 .bottom-nav {
@@ -225,6 +305,12 @@
   color: var(--text-2);
 }
 
+/* Sit above the sticky action bars on the workout and starting-point pages. */
+body:has(.workout-footer) .toast-region,
+body:has(.start-footer) .toast-region {
+  bottom: 96px;
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -235,6 +321,14 @@
 @media (max-width: 767px) {
   .toast-region {
     bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 12px);
+  }
+
+  body:has(.workout-footer) .toast-region {
+    bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 86px);
+  }
+
+  body:has(.start-footer) .toast-region {
+    bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 140px);
   }
 
   /* Above the bottom sheet when a skill is open. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialProgress, MAX_GOALS, progressReducer, sanitizeProgress, type ProgressState } from './progress';
+import { initialProgress, localDay, MAX_GOALS, progressReducer, sanitizeProgress, type ProgressState } from './progress';
 
 const at = '2026-01-01T00:00:00.000Z';
 
@@ -86,6 +86,43 @@ describe('sanitizeProgress', () => {
       logs: { pushup: [{ id: 'ok', date: at, sets: 3, value: 10 }] },
       goals: ['pullup'],
       onboarded: true,
+      workouts: {},
     });
+  });
+
+  it('keeps valid workout records and session days, and drops broken ones', () => {
+    const s = sanitizeProgress({
+      version: 1,
+      logs: { pushup: [{ id: 'a', date: at, day: '2026-10-18', sets: 3, value: 5 }, { id: 'b', date: at, day: 'nope', sets: 3, value: 5 }] },
+      workouts: {
+        '2026-10-18': [
+          { title: 'Push + Pull', focus: ['push', 'pull', 'bogus'], length: 'standard', startedAt: at, finishedAt: at },
+          { title: 'Broken', focus: ['push'], length: 'forever', startedAt: at },
+        ],
+        'not-a-day': [{ title: 'x', focus: [], length: 'short', startedAt: at }],
+      },
+    })!;
+    expect(s.logs.pushup.map((l) => l.day)).toEqual(['2026-10-18', undefined]);
+    expect(s.workouts).toEqual({
+      '2026-10-18': [{ title: 'Push + Pull', focus: ['push', 'pull'], length: 'standard', startedAt: at, finishedAt: at }],
+    });
+  });
+});
+
+describe('workout records', () => {
+  const record = { title: 'Push + Pull', focus: ['push', 'pull'] as ('push' | 'pull')[], length: 'standard' as const, startedAt: at };
+
+  it('records, finishes and removes workouts by day', () => {
+    let s = progressReducer(initialProgress, { type: 'recordWorkout', day: '2026-10-18', record });
+    s = progressReducer(s, { type: 'recordWorkout', day: '2026-10-18', record }); // no duplicates
+    expect(s.workouts['2026-10-18']).toHaveLength(1);
+    s = progressReducer(s, { type: 'finishWorkout', day: '2026-10-18', startedAt: at, at: 'later' });
+    expect(s.workouts['2026-10-18'][0].finishedAt).toBe('later');
+    s = progressReducer(s, { type: 'removeWorkout', day: '2026-10-18', startedAt: at });
+    expect(s.workouts).toEqual({});
+  });
+
+  it('formats local days', () => {
+    expect(localDay(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
   });
 });

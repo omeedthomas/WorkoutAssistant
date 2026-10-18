@@ -511,6 +511,36 @@
   align-self: stretch;
 }
 
+.account-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-who > div {
+  display: grid;
+}
+
+.sync-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+.sync-line.is-error {
+  color: var(--danger);
+}
+
+.welcome__signin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+
 .settings-section--danger {
   border-color: color-mix(in srgb, var(--danger) 25%, var(--border));
 }
