@@ -5,8 +5,28 @@ progression ladder (wall push-up → incline → knee → push-up → …). Ladd
 trees: the bar muscle-up needs chest-to-bar pull-ups (Pull) **and** straight-bar dips (Push), and the front
 lever needs pull-ups **and** a hollow body hold (Core).
 
-- **8 trees, 40 progressions, 129 exercises:** Push, Pull, Core, Legs, Handstand, Planche, Levers (front, back
-  and human flag) and Muscle-up.
+- **13 trees, 71 progressions, 228 exercises:** nine skill trees (Push, Pull, Core, Legs, Handstand,
+  Planche, Levers (front, back and human flag), Muscle-up and Breakdance) and four physical therapy and mobility
+  trees.
+- **Breakdance:** freezes and power moves, each with its own ladder. Freezes: the baby freeze and air baby
+  (from the frog stand), turtle freeze, chair freeze → pike freeze → airchair, tripod headstand, and head
+  hollowback → hollowback. Power moves: turtles, backspin → baby windmill → windmill, swipes, tapping headspin →
+  headspin, flare lift → half flare → flare → continuous flares → airflare, and the 2000 → 1990 hand spins.
+  The harder moves build on other trees: flares need a tuck L-sit and pike compression (Core), the airchair a
+  handstand kick-up, the hollowback and hand spins a freestanding handstand (Handstand).
+- **Physical therapy & mobility:** Shoulder Rehab (shoulder-blade control, then rotator cuff work with bands,
+  dumbbells, kettlebells and an exercise ball, up to the Turkish get-up), Lower Back (gentle mobility, McGill-style
+  core, the hip hinge up to kettlebell swings, Pallof presses), Hips (hip flexor and glute stretches, 90/90 and
+  hip CARs, glute med work, Copenhagen planks, up to the Cossack squat) and Mobility (hamstrings to a full pike,
+  upper back, chest and ankles). They have their own section on Home and a *Recovery & mobility* training day.
+- **Balance variants:** harder, more stable-shoulder versions of existing skills on unstable surfaces:
+  BOSU and exercise-ball push-ups, a BOSU pike hold and BOSU handstands (against the wall, then freestanding),
+  exercise-ball planks, rollouts, stir-the-pot and pikes, and BOSU squats and split squats.
+- **Equipment:** tell Ascent what you have (pull-up bar, dip bars, parallettes, rings, bands, dumbbells,
+  kettlebell, exercise ball, BOSU, foam roller…). Workouts only include what you can do: if a stand-in works
+  (two sturdy chairs for dips, water bottles for light dumbbells), the exercise gets a setup note; if not, it's
+  swapped for the closest alternative you can do. Each skill's details say what it needs and suggest
+  alternatives.
 - **Weighted progressions:** weighted push-ups, dips, pull-ups, chin-ups and Bulgarian split squats. You log the
   added weight with each session, and the plan adds the smallest plate (5 lb or 2.5 kg) each time you complete
   it, past the mastery target if you keep going. They only join generated workouts once you've logged one, so
@@ -18,9 +38,10 @@ lever needs pull-ups **and** a hollow body hold (Core).
   ladders that's easier to scan on a phone. The *All* view shows every tree and how they connect.
 - **Skill details:** a how-to video, the mastery target (e.g. 3 × 12 reps), form cues, prerequisites and
   unlocks, a session logger with progress toward the target, and a "Target hit! Mark mastered?" prompt.
-- **How-to videos:** every exercise has a YouTube tutorial, mostly from coaching channels (FitnessFAQs,
-  Calisthenicmovement, Antranik, Simonster Strength, Minus The Gym, Squat University and others). The
-  player loads only when you press play, in privacy-enhanced (no-cookie) mode.
+- **How-to videos:** every exercise and every warm-up and cooldown drill has a YouTube tutorial, mostly from
+  coaching and physical therapy channels (FitnessFAQs, Calisthenicmovement, Antranik, Simonster Strength, Minus
+  The Gym, Squat University, Rehab My Patient and others). The player loads only when you press play (or follow a
+  guided workout), in privacy-enhanced (no-cookie) mode.
 - **Today's plan (automatic progression):** every exercise gets a prescription for the next session, worked
   out from your history (`src/lib/progression.ts`):
   - *No history:* start at about half the mastery target (e.g. push-ups 3 × 6 toward 3 × 12).
@@ -31,20 +52,50 @@ lever needs pull-ups **and** a hollow body hold (Core).
     the plateau, then back to 3 × 6. A big miss resets the plan from what you actually did.
   - *Two weeks or more off:* ease back in slightly lighter.
   - *Target reached:* prompt to mark it mastered and move on to the next step.
+  - *Mastered:* hit the target (or your recent best) to maintain it. Each time you complete the plan, the next
+    session adds a rep or a few seconds, so your max keeps growing, up to twice the target.
 
   Each session logs what was planned alongside what you did. The panel shows the sets laid out, rest time,
   roughly how many sessions to mastery, and a chart of your recent sessions against the goal.
 - **Daily workout generator:** choose a training day (Push + Pull, Handstand + Core, Legs + Core,
-  Planche + Levers, Muscle-up + Pull, Full body) or any mix of trees, plus a length (~30/45/60 min). You get:
+  Planche + Levers, Muscle-up + Pull, Full body, Recovery & mobility) or any mix of trees, plus a length.
+  Every area gets at least two exercises: Short gives 2 per area, Standard 3 (up to 12 in all) and Long 4 (up
+  to 16), with at least 3, 5 and 7 for a single area. More areas make a longer workout, and each length button
+  shows the estimated time for what you picked. You get:
   1. *Warm-up:* a pulse raiser, then prep drills for each chosen area (wrists for handstands, active hangs
      for pulling, and so on).
-  2. *Main work:* the exercises you're currently on in each tree, using the progression plan above. Goal
-     paths come first. Skill work (balance and statics) runs first, then strength (alternating trees), then
-     core. If a chosen tree isn't unlocked yet, it trains the steps that lead into it.
+  2. *Main work:* your current step in each of an area's progressions, using the progression plan above.
+     Goal paths come first, then the main progressions (push-ups and dips, squats and glute bridges…) before
+     variations of them. Skill work (balance and statics) runs first, then strength (alternating trees), then
+     core. If a chosen tree isn't unlocked yet, or has only a step or two unlocked, it trains the steps that lead
+     into it (leaving those from other chosen areas to them). If that's still not enough, it adds steps a little
+     ahead (at most two unmastered steps away), at an easy starting prescription. A beginner's Handstand, next to
+     Push and Core, gets the Elevated Pike Hold and Wall Walk.
+     Mastered exercises come back too: the hardest mastered step of a progression returns once you haven't done
+     it for a week (at most one per area every few days, and never ahead of your goals), with a plan to
+     maintain it or beat your best.
   3. *Cooldown:* stretches for the muscles you worked, ending with box breathing.
 
-  Press *Start workout* to tick off drills and log each exercise with one tap ("Done as planned"), or enter
-  different numbers. The started workout stays fixed for the day, even across reloads.
+  Each drill shows a thumbnail you can tap to watch it, and timed drills (jumping jacks, holds, stretches) are
+  marked. The started workout stays fixed for the day, even across reloads.
+- **Guided workouts:** *Start workout* walks you through it from the top, one set at a time. Each step shows
+  a looping, muted demo video and either the reps to do (tap *Done*) or a timer, which starts after a 5-second
+  get-ready countdown. Per-side holds and stretches time each side, with a "switch sides" countdown between.
+  Rest follows every set: short for therapy and easy steps (30–45 s), about 2 minutes for push-ups and other
+  sets worked close to your limit, 2–3 minutes for advanced and weighted ones, with +15 s and *Skip rest*.
+  An announcer reads it out ("Time to do Push-up for 12 reps", "Rest for 2 minutes. Next up: …") and counts
+  3, 2, 1 into every timer and at the end of each set and rest. Mute it with the speaker button during the
+  workout or turn it off in Settings; demo videos can be turned off too. Finished exercises are logged and
+  drills ticked off as you go. *Show list* switches to the list, where you can log exercises with one tap
+  ("Done as planned") or different numbers, and start the guided workout from any item.
+- **Daily mobility:** five short follow-along routines (7–9 minutes) to loosen up and start the day:
+  a *Morning Wake-up Flow* (head to toe), *Upper Back & Thoracic Spine* (rotations, extension over a chair,
+  neck half circles), *Shoulder Mobility* (circles, shoulder CARs, dislocates, chest and lat stretches),
+  *Hip Mobility* (90/90, hip CARs, World's Greatest Stretch, pigeon, frog) and *Legs & Ankles* (leg swings,
+  hamstring floss, ankle work, calf stretches). They play in the same guided player as workouts, with a
+  demo of every move, timers and the announcer. Home suggests one each day (something you haven't done
+  lately, or one that suits what you trained yesterday), and finished routines appear in History. They
+  count toward your streak but don't replace the day's workout.
 - **Workout plan (Home):** choose the areas you're training (e.g. Push + Pull + Core, or Push + Handstand)
   and a workout length, and save it. You can adjust it any time. Every day Home shows that day's workout from
   your plan, with time and calories, and starts it in one tap. After you train, it says "Great Job!" with the
@@ -138,9 +189,23 @@ never the rest of anyone's Drive. Google classes this as a non-sensitive scope.
    `VITE_GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com`. The id isn't secret, and
    `.env.local` is gitignored anyway.
 6. **Restart** `npm run dev`. A *Sign in* button appears in the header and in Settings.
-7. **When you're ready for others:** deploy the `dist/` folder to any HTTPS static host (Netlify,
-   Vercel, Cloudflare Pages, GitHub Pages…), add that address to the authorized JavaScript origins, and
-   *Publish* the app on the Audience page. Until then, only the listed test users can sign in.
+7. **When you're ready for others:**
+   - Set `VITE_CONTACT_EMAIL` in `.env.local`. This is the contact address shown on the Privacy Policy and
+     Terms of Service pages.
+   - Build, then deploy the `dist/` folder to any HTTPS static host (Netlify, Vercel, Cloudflare Pages,
+     GitHub Pages…). Add that address to the authorized JavaScript origins.
+   - On the *Branding* page, fill in the home page (`https://<your-site>/`), privacy policy
+     (`https://<your-site>/#/privacy`) and terms of service (`https://<your-site>/#/terms`) links, and add
+     your site's domain under *Authorized domains*.
+   - *Publish* the app on the Audience page. Until then, only the listed test users can sign in.
+
+### Privacy Policy and Terms of Service
+
+Both live in the app, at `#/privacy` and `#/terms` (`src/pages/LegalPages.tsx`), and are linked from
+Settings and the sign-in prompt. They describe exactly what the app does: data stays in the browser and the
+user's own Drive, it requests only the `drive.file` scope, and it follows Google's Limited Use requirements.
+Update them, and `LEGAL_UPDATED` in `src/data/legal.ts`, whenever that changes. Have them reviewed before
+publishing; they're a starting draft, not legal advice.
 
 Sign-in needs `localhost` or HTTPS. To test on your phone, use the deployed site rather than
 `http://<your-LAN-IP>`.
@@ -153,10 +218,13 @@ Sign-in needs `localhost` or HTTPS. To test on your phone, use the deployed site
 - **After that:** each change writes only the files that changed (usually just today's) a moment after
   you make it. Coming back to the app re-reads Drive to pick up your other devices' changes. Only files
   changed since the last sync are downloaded.
-- **Access lasts about an hour.** A browser app with no server only gets short-lived Google access. When
-  it expires, everything keeps working and saving on the device, and the header shows **Reconnect**.
-  One tap renews access (usually without any prompt) and uploads what's waiting. A small backend that
-  stores refresh tokens would remove this step, if you ever want one.
+- **Access lasts about an hour, and renews itself.** A browser app with no server only gets short-lived
+  Google access and no refresh token, and Google only hands out a new one in response to a tap. So with
+  **Stay connected** on (Settings → Account, on by default), Ascent renews access on your next tap once it's
+  within 5 minutes of running out, or has. You don't sign in again or press anything; at most a Google window
+  flashes open and closes. Until then everything keeps working and saving on the device. If the renewal
+  can't happen (a blocked pop-up, or the setting is off), the header shows **Reconnect**. Fully silent
+  background renewal would need a small backend that stores refresh tokens.
 - **Offline:** changes stay on the device and upload when you're back. If you close the app first,
   they're merged on your next visit.
 - **Signing out** clears this device's copy, so the next person who uses the browser starts fresh.
@@ -164,8 +232,8 @@ Sign-in needs `localhost` or HTTPS. To test on your phone, use the deployed site
 
 **Trying it without Google:** run `VITE_CLOUD_MOCK=true npm run dev` (PowerShell:
 `$env:VITE_CLOUD_MOCK='true'; npm run dev`). This gives you a fake "Test User" whose "Drive" is
-`localStorage`. Set `localStorage['ascent:mock-expired'] = '1'` to try the Reconnect flow. It's
-development only and never included in production builds.
+`localStorage`. Set `localStorage['ascent:mock-expired'] = '1'` to try expired access (the next tap renews
+it; `ascent:mock-renewals` counts renewals). It's development only and never included in production builds.
 
 ## Project layout
 
@@ -175,14 +243,20 @@ src/
     types.ts          TreeDef → TrackDef → StepDef (authoring format) and the flattened Exercise
     trees/*.ts        One file per skill tree (all exercise content lives here)
     index.ts          Builds the catalog: resolves prerequisites, dependents, tracks
-    videos.ts         One YouTube how-to video per exercise
-    drills.ts         Warm-up and cooldown drills
+    videos.ts         One YouTube how-to video per exercise (and per drill that isn't also an exercise)
+    drills.ts         Warm-up, cooldown and mobility drills, with timers for the timed ones
+    routines.ts       Daily mobility routines (lists of drills)
+    equipment.ts      Equipment you can own, and household stand-ins
     splits.ts         Training-day groupings and weekly schedules
     catalog.test.ts   Guards the data: ids exist, no cycles, difficulty never decreases along a path
   lib/
     graph.ts          Status (mastered/ready/locked), ancestors, goal paths, session suggestions
     progression.ts    Next-session prescriptions from your logged history
     workout.ts        Daily workout generator and suggested training day
+    equipment.ts      What you can do with your equipment, and the closest alternatives
+    guided.ts         Turns a started workout or a routine into guided steps (sets, sides, rest) and announcer lines
+    routines.ts       Which routines were done when, and today's suggested routine
+    announcer.ts      Spoken announcements (browser speech) and guided-workout preferences
     history.ts        Per-day summaries, streaks, rep growth, body-weight goal progress
     calories.ts       Calorie estimates (MET values × body weight × time)
     units.ts          lb/kg conversion and plate rounding (weights are stored in kg)
@@ -199,8 +273,8 @@ src/
     progress.ts       Pure reducer, validation of stored/imported data
     ProgressContext   React context + localStorage persistence (synced across tabs)
     CloudContext      Account state, sync status, sign in/out
-  components/         SkillMap (React Flow), SkillNode, SkillList, SkillDetail, nav, toast…
-  pages/              Train, Workout, History, Trees, Starting point, Settings
+  components/         SkillMap (React Flow), SkillNode, SkillList, SkillDetail, GuidedPlayer, DailyMobility, nav, toast…
+  pages/              Train, Workout, Mobility, History, Trees, Starting point, Equipment, Settings, legal pages
   styles/             Plain CSS with design tokens in base.css
 ```
 
@@ -234,6 +308,10 @@ Targets: `reps(sets, n)`, `repsEach(sets, n)` (per side), `hold(sets, seconds)`,
 Levels run from 1 (anyone) to 10 (elite). Run `npm test` after editing. It catches typos in ids, cycles,
 and prerequisites that are harder than the skill they unlock.
 
+Steps that need equipment list it with `equipment: ['pullup-bar', 'rings']` (any one of them will do), and can
+suggest `alternatives: ['…']` (exercise ids) for people without it. A tree's `kind` is `'skill'` or `'therapy'`,
+which decides the Home section it appears in.
+
 To add a whole new tree, create a `TreeDef` file, add its id to `TreeId` in `types.ts`, and add it to the
 `trees` array in `data/index.ts`.
 
@@ -247,7 +325,8 @@ Videos live in `src/data/videos.ts`, keyed by exercise id:
 
 To swap one, take the 11-character id from a YouTube URL (`youtube.com/watch?v=<id>`), update the title and
 channel, then run `npm run check:videos`. Some uploaders turn off embedding, and the check catches that. Every new
-exercise needs a video entry, or `npm test` will fail.
+exercise needs a video entry, or `npm test` will fail. Warm-up and cooldown drills either reuse an exercise's video
+(`exercise: 'cat-cow'` in `drills.ts`) or have their own entry in `drillVideos`; every drill needs one or the other.
 
 ## Stack
 
@@ -269,5 +348,10 @@ free to use under the [Unsplash License](https://unsplash.com/license):
 | Planche | GMB Fitness | [unsplash.com/photos/NYCVycvTbek](https://unsplash.com/photos/NYCVycvTbek) |
 | Levers | Karsten Winegeart | [unsplash.com/photos/GYktdLWpxx4](https://unsplash.com/photos/GYktdLWpxx4) |
 | Muscle-up | Charan S | [unsplash.com/photos/pQ8Ltw-MFWE](https://unsplash.com/photos/pQ8Ltw-MFWE) |
+| Breakdance | Michael Afonso | [unsplash.com/photos/z8Tul255kGg](https://unsplash.com/photos/z8Tul255kGg) |
+| Shoulder Rehab | Margaret Young | [unsplash.com/photos/ocNf_njy6JA](https://unsplash.com/photos/ocNf_njy6JA) |
+| Lower Back | Margaret Young | [unsplash.com/photos/970jpIINVU0](https://unsplash.com/photos/970jpIINVU0) |
+| Hips | silvia_berger | [unsplash.com/photos/gwEtNJKjepY](https://unsplash.com/photos/gwEtNJKjepY) |
+| Mobility | Yazid N | [unsplash.com/photos/-GdW_D027rM](https://unsplash.com/photos/-GdW_D027rM) |
 
 To swap one, replace the file in `src/assets/trees/` (a square WebP works best) and update this table.

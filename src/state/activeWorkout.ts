@@ -19,6 +19,8 @@ export interface ActiveExercise {
   reason: string;
   why: string;
   block: Block;
+  /** How to set up without the usual equipment. */
+  setup?: string;
   logged?: { sets: number; value: number; addedKg?: number; logId: string };
 }
 
@@ -33,6 +35,10 @@ export interface ActiveWorkout {
   notes: string[];
   /** Drill ids that have been ticked off. */
   checked: string[];
+  /** Showing the guided, step-by-step player (rather than the list). */
+  guided: boolean;
+  /** The guided player's current step, so a reload picks up where you were. */
+  position: number;
 }
 
 const KEY = 'ascent:workout:v1';
@@ -51,6 +57,8 @@ function load(): ActiveWorkout | null {
       main: w.main.filter((m) => exerciseById[m.exerciseId]),
       checked: Array.isArray(w.checked) ? w.checked : [],
       notes: Array.isArray(w.notes) ? w.notes : [],
+      guided: w.guided === true,
+      position: Number.isInteger(w.position) && w.position > 0 ? w.position : 0,
     };
   } catch {
     return null;
@@ -74,9 +82,12 @@ export function snapshot(w: Workout): ActiveWorkout {
       reason: m.plan.reason,
       why: m.why,
       block: m.block,
+      ...(m.setup && { setup: m.setup }),
     })),
     notes: w.notes,
     checked: [],
+    guided: true,
+    position: 0,
   };
 }
 
@@ -134,7 +145,12 @@ export function useActiveWorkout() {
       setActive((w) =>
         w && { ...w, checked: w.checked.includes(id) ? w.checked.filter((c) => c !== id) : [...w.checked, id] },
       ),
+    checkDrill: (id: string) => setActive((w) => w && (w.checked.includes(id) ? w : { ...w, checked: [...w.checked, id] })),
     markLogged: (exerciseId: string, logged: ActiveExercise['logged']) =>
       setActive((w) => w && { ...w, main: w.main.map((m) => (m.exerciseId === exerciseId ? { ...m, logged } : m)) }),
+    /** Opens the guided player (at `position`, when given) or goes back to the list. */
+    setGuided: (guided: boolean, position?: number) =>
+      setActive((w) => w && { ...w, guided, ...(position !== undefined && { position }) }),
+    setPosition: (position: number) => setActive((w) => (w && w.position !== position ? { ...w, position } : w)),
   };
 }

@@ -580,25 +580,85 @@
 }
 
 .drill {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  width: 100%;
+  display: grid;
+  gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
-  text-align: left;
 }
 
-.drill--check:hover {
-  background: var(--surface-3);
+.drill__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .drill__check {
+  display: grid;
   flex: none;
-  margin-top: 1px;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -4px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
   color: var(--text-3);
+}
+
+.drill__check:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.drill__thumb {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 72px;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+}
+
+.drill__thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+
+.drill__thumb svg {
+  position: relative;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.drill__thumb:hover img,
+.drill__thumb[aria-expanded='true'] img {
+  opacity: 1;
+}
+
+.drill__thumb[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.drill__play {
+  flex: none;
+  margin: -6px -6px -6px 0;
+}
+
+.drill .video {
+  max-width: 480px;
 }
 
 .drill.is-done {
@@ -631,12 +691,46 @@
 }
 
 .drill__dose {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: 4px;
+  max-width: 34%;
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.drill__dose svg {
+  flex: none;
+  color: var(--gold);
+}
+
+.drill__dose--inline {
+  display: none;
+  max-width: none;
+  text-align: left;
+}
+
+@media (max-width: 560px) {
+  .drill__row {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .drill__thumb {
+    width: 60px;
+  }
+
+  .drill__row > .drill__dose {
+    display: none;
+  }
+
+  .drill__dose--inline {
+    display: inline-flex;
+  }
 }
 
 .wx-card {

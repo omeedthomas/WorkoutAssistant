@@ -7,6 +7,7 @@ export const handstand: TreeDef = {
   tagline: 'Balance upside down, then press it: wall work to freestanding handstand push-ups.',
   color: '#ae3ec9',
   ultimate: 'freestanding-hspu',
+  kind: 'skill',
   tracks: [
     {
       id: 'balance',
@@ -227,6 +228,48 @@ export const handstand: TreeDef = {
             'Correct your balance with your fingers as you press',
             'Start with partial range',
           ],
+        },
+      ],
+    },
+    {
+      id: 'unstable-handstand',
+      name: 'Handstands on a BOSU',
+      from: ['elevated-pike-hold'],
+      steps: [
+        {
+          id: 'bosu-pike-hold',
+          name: 'BOSU Pike Hold',
+          level: 4,
+          target: hold(3, 20),
+          equipment: ['bosu'],
+          alternatives: ['elevated-pike-hold', 'wall-walk'],
+          description:
+            'With the BOSU flat side up and your feet on a chair or box, walk your hands onto the platform and hold a pike with your hips over your shoulders.',
+          cues: ['Grip the platform edges', 'Push tall through your shoulders', 'Keep the platform level'],
+        },
+        {
+          id: 'bosu-wall-handstand',
+          name: 'BOSU Wall Handstand',
+          level: 6,
+          target: hold(3, 20),
+          equipment: ['bosu'],
+          requires: ['chest-to-wall-handstand'],
+          alternatives: ['chest-to-wall-handstand', 'wall-toe-pulls'],
+          description:
+            'A handstand with your hands on the BOSU platform and your heels or toes resting on the wall. Teaches your hands to make tiny balance corrections.',
+          cues: ['Platform close enough to the wall to rest lightly on it', 'Fingers do the balancing', 'Have a clear space to come down'],
+        },
+        {
+          id: 'bosu-handstand',
+          name: 'BOSU Handstand',
+          level: 9,
+          target: hold(3, 10),
+          equipment: ['bosu'],
+          requires: ['freestanding-handstand'],
+          alternatives: ['freestanding-handstand', 'straddle-weight-shift'],
+          description:
+            'A freestanding handstand on the BOSU platform. An advanced balance skill: master a solid freestanding handstand on the floor first, and practise with a spotter or a safe space to cartwheel out.',
+          cues: ['Learn to bail out safely before trying it', 'Small, fast corrections through the fingers', 'Stack hips over shoulders'],
         },
       ],
     },

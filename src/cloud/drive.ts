@@ -5,8 +5,10 @@ import { CloudAuthExpiredError, CloudError, type CloudBackend, type CloudUser } 
  * Google sign-in (Google Identity Services, token model) + storage in the
  * user's own Google Drive. No server: the browser gets a short-lived access
  * token (about an hour) for the `drive.file` scope, which only lets the app see
- * files it created. When it expires, changes wait on the device until the user
- * taps Reconnect, which usually completes without any prompt.
+ * files it created. There's no refresh token without a server, and Google only
+ * hands out a new token in response to a tap, so CloudContext renews it on the
+ * user's next tap when it's about to expire (no prompt, since consent is
+ * remembered). Until then, changes wait on the device.
  */
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
@@ -178,6 +180,7 @@ export function createDriveBackend(clientId: string): CloudBackend {
     async reconnect() {
       await adopt(await requestToken('', user?.email ?? undefined));
     },
+    accessExpiresAt: () => read<{ token: string; expiresAt: number }>(TOKEN_KEY)?.expiresAt ?? null,
     async signOut() {
       write(TOKEN_KEY, null);
       write(USER_KEY, null);

@@ -22,6 +22,8 @@ describe('calorie estimates', () => {
       warmup: ['pulse'],
       cooldown: [],
       notes: [],
+      guided: false,
+      position: 0,
       main: [{ exerciseId: 'pushup', sets: 3, value: 8, kind: 'start' as const, reason: '', why: '', block: 'strength' as const }],
     };
     expect(activeCalories({ ...base, checked: [] }, 80)).toBe(0);

@@ -119,6 +119,10 @@ export function AccountSection() {
             this device comes with you.
           </p>
           <GoogleSignInButton />
+          <p className="muted small">
+            By signing in you agree to the <a href="#/terms">Terms of Service</a> and{' '}
+            <a href="#/privacy">Privacy Policy</a>.
+          </p>
         </>
       ) : (
         <>
@@ -133,6 +137,14 @@ export function AccountSection() {
             <SyncIcon status={cloud.status} />
             {syncLabel(cloud.status, cloud.lastSyncedAt)}
           </p>
+          <label className="checkbox">
+            <input type="checkbox" checked={cloud.autoReconnect} onChange={(e) => cloud.setAutoReconnect(e.target.checked)} />
+            <span>
+              <strong>Stay connected.</strong> Google only lets web apps reach your Drive for about an hour at a time. When
+              that's about to run out, Ascent renews it on your next tap, so you don't have to sign in or press Reconnect.
+              A Google window may flash open for a moment.
+            </span>
+          </label>
           <div className="button-row">
             {cloud.status === 'reconnect' && (
               <button className="btn btn--primary" onClick={() => void cloud.reconnect()}>

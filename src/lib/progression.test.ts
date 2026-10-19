@@ -100,6 +100,28 @@ describe('planSession', () => {
 
   it('switches to maintenance once mastered', () => {
     expect(plan(history([3, 12]), pushup, true)).toMatchObject({ kind: 'maintain', sets: 3, value: 12 });
+    expect(plan([], pushup, true)).toMatchObject({ kind: 'maintain', sets: 3, value: 12 });
+  });
+
+  it('keeps raising the bar after mastery while sessions go to plan, up to twice the target', () => {
+    expect(plan(history([3, 12, [3, 12]]), pushup, true)).toMatchObject({ kind: 'progress', sets: 3, value: 13 });
+    expect(plan(history([3, 15, [3, 13]]), pushup, true)).toMatchObject({ kind: 'progress', value: 16 });
+    // Missed the higher plan: hold your best instead.
+    expect(plan(history([3, 13, [3, 14]]), pushup, true)).toMatchObject({ kind: 'maintain', value: 13 });
+    // Fell below the target: back to it.
+    expect(plan(history([3, 10, [3, 13]]), pushup, true)).toMatchObject({ kind: 'maintain', value: 12 });
+    // Twice the target is the ceiling.
+    const top = plan(history([3, 24, [3, 24]]), pushup, true);
+    expect(top).toMatchObject({ kind: 'maintain', value: 24 });
+    expect(top.reason).toMatch(/twice the target/);
+    // Holds go up by seconds.
+    expect(plan(history([3, 45, [3, 45]]), plank, true)).toMatchObject({ kind: 'progress', value: 50 });
+  });
+
+  it('maintains the target after a long break from a mastered exercise', () => {
+    const logs = history([3, 18, [3, 18]]);
+    logs[0].date = new Date(now.getTime() - 20 * 86_400_000).toISOString();
+    expect(plan(logs, pushup, true)).toMatchObject({ kind: 'maintain', value: 12 });
   });
 
   it('eases you back in after a long break', () => {

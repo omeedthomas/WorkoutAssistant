@@ -1,5 +1,6 @@
 import { exerciseById } from '../data';
 import { drillById, type Drill } from '../data/drills';
+import { routineSeconds, type Routine } from '../data/routines';
 import type { ActiveWorkout } from '../state/activeWorkout';
 import type { WorkoutRecord } from '../state/progress';
 import { sessionsByWorkout, type DaySession, type DaySummary } from './history';
@@ -10,7 +11,7 @@ import { exerciseSeconds, LENGTHS, type Workout } from './workout';
  * kcal per minute = MET × 3.5 × body weight (kg) ÷ 200. Strength work counts
  * its rest periods, so it uses a moderate MET rather than a "vigorous" one.
  */
-const MET = { warmup: 3.5, main: 5, cooldown: 2.3 };
+const MET = { warmup: 3.5, main: 5, cooldown: 2.3, mobility: 2.8 };
 
 /** Used until a body weight is logged. */
 export const DEFAULT_BODY_KG = 75;
@@ -37,6 +38,11 @@ export function activeCalories(w: ActiveWorkout, kg: number): number {
     return m.logged && ex ? s + exerciseSeconds(ex, m.logged.sets, m.logged.value) : s;
   }, 0);
   return Math.round(kcal(MET.warmup, kg, ticked(w.warmup)) + kcal(MET.main, kg, main) + kcal(MET.cooldown, kg, ticked(w.cooldown)));
+}
+
+/** A daily mobility routine (gentle, so a light MET). */
+export function routineCalories(r: Routine, kg: number): number {
+  return Math.round(kcal(MET.mobility, kg, routineSeconds(r)));
 }
 
 /** Logged sessions, outside of any planned workout. */

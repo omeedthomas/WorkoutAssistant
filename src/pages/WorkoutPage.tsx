@@ -1,19 +1,35 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { Check, Circle, CircleCheck, ClipboardList, Clock, Flame, Lightbulb, Play, Sparkles, Undo2 } from 'lucide-react';
+import { Check, ClipboardList, Clock, Flame, Lightbulb, Play, Sparkles, Undo2, Wrench } from 'lucide-react';
+import { DrillRow } from '../components/DrillRow';
+import { GuidedWorkout } from '../components/GuidedWorkout';
 import { NumberStepper } from '../components/NumberStepper';
 import { planKindLabel } from '../components/SessionPlanCard';
 import { useToast } from '../components/Toast';
 import { exerciseById, treeById, trees, type Exercise, type TreeId } from '../data';
 import { drillById, type Drill } from '../data/drills';
+import { equipmentById } from '../data/equipment';
 import { splitById, splits, weeklyPlans, type Split } from '../data/splits';
+import { unlockSpeech } from '../lib/announcer';
 import { activeCalories, DEFAULT_BODY_KG, workoutCalories } from '../lib/calories';
 import { formatWork, pct } from '../lib/format';
 import { meetsTarget } from '../lib/graph';
+import { firstStepOf, guidedSteps, type GuidedStep } from '../lib/guided';
 import { bodyWeightOn } from '../lib/history';
 import { restFor, type PlanKind } from '../lib/progression';
 import { navigate, skillHref, toHash } from '../lib/router';
 import { fromUnits, loadStepKg, toUnits } from '../lib/units';
-import { BLOCKS, focusTitle, generateWorkout, LENGTHS, sameFocus, sortFocus, suggestSplit, type Block, type WorkoutLength } from '../lib/workout';
+import {
+  BLOCKS,
+  focusTitle,
+  generateWorkout,
+  LENGTHS,
+  minutesByLength,
+  sameFocus,
+  sortFocus,
+  suggestSplit,
+  type Block,
+  type WorkoutLength,
+} from '../lib/workout';
 import { useActiveWorkout, workoutProgress, type ActiveExercise } from '../state/activeWorkout';
 import { useProgress } from '../state/ProgressContext';
 
@@ -48,6 +64,8 @@ interface MainItem {
   reason: string;
   why: string;
   block: Block;
+  /** How to set up without the usual equipment. */
+  setup?: string;
   logged?: ActiveExercise['logged'];
 }
 
@@ -90,6 +108,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
     () => (prefs.focus.length ? generateWorkout(state, prefs.focus, prefs.length) : null),
     [state, prefs.focus, prefs.length],
   );
+  const minutes = useMemo(() => (prefs.focus.length ? minutesByLength(state, prefs.focus) : null), [state, prefs.focus]);
   const bodyKg = bodyWeightOn(state);
 
   if (session.active) return <ActiveWorkoutView session={session} />;
@@ -120,7 +139,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
           <p className="builder__suggestion small">
             <ClipboardList size={15} aria-hidden />
             <span>
-              <strong>Your plan: {focusTitle(plan.focus)}</strong> ({LENGTHS[plan.length].minutes}).{' '}
+              <strong>Your plan: {focusTitle(plan.focus)}</strong> ({LENGTHS[plan.length].label.toLowerCase()}).{' '}
               {!(sameFocus(plan.focus, prefs.focus) && prefs.length === plan.length) && (
                 <button className="link-btn" onClick={() => setPrefs((p) => ({ ...p, focus: plan.focus, length: plan.length }))}>
                   Use it
@@ -162,10 +181,22 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
           <div className="segmented" role="group" aria-label="Workout length">
             {(Object.keys(LENGTHS) as WorkoutLength[]).map((l) => (
               <button key={l} aria-pressed={prefs.length === l} onClick={() => setPrefs((p) => ({ ...p, length: l }))}>
-                {LENGTHS[l].label} <span className="muted">{LENGTHS[l].minutes}</span>
+                {LENGTHS[l].label} {minutes && <span className="muted">~{minutes[l]} min</span>}
               </button>
             ))}
           </div>
+        </div>
+        <div className="builder__row">
+          <span className="eyebrow">Equipment</span>
+          <p className="small muted">
+            <Wrench size={14} aria-hidden />{' '}
+            {state.equipment
+              ? state.equipment.have.length
+                ? state.equipment.have.map((e) => equipmentById[e].name).join(', ')
+                : 'None: floor, wall and household stand-ins'
+              : 'Not set, so every exercise is included'}{' '}
+            · <a href="#/equipment">{state.equipment ? 'Change' : 'Set up'}</a>
+          </p>
         </div>
       </section>
 
@@ -191,6 +222,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
             <button
               className="btn btn--primary btn--lg"
               onClick={() => {
+                unlockSpeech();
                 const started = session.start(workout);
                 recordWorkout({
                   title: focusTitle(workout.focus),
@@ -213,6 +245,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
               sets: m.plan.sets,
               value: m.plan.value,
               addedKg: m.plan.addedKg,
+              setup: m.setup,
               kind: m.plan.kind,
               reason: m.plan.reason,
               why: m.why,
@@ -267,6 +300,8 @@ interface ActiveControls {
   checked: string[];
   toggleDrill: (id: string) => void;
   markLogged: (exerciseId: string, logged: ActiveExercise['logged']) => void;
+  /** Opens the guided workout at this drill or exercise. */
+  playFrom: (kind: GuidedStep['kind'], id: string) => void;
 }
 
 function WorkoutBody({
@@ -300,7 +335,13 @@ function WorkoutBody({
       <WorkoutSection step={1} title="Warm-up" meta={`about ${minutes(warmup)} min`}>
         <ul className="drill-list">
           {warmup.map((d) => (
-            <DrillRow key={d.id} drill={d} active={active} />
+            <DrillRow
+              key={d.id}
+              drill={d}
+              done={active?.checked.includes(d.id)}
+              onToggle={active && (() => active.toggleDrill(d.id))}
+              onPlay={active && (() => active.playFrom('drill', d.id))}
+            />
           ))}
         </ul>
       </WorkoutSection>
@@ -324,7 +365,13 @@ function WorkoutBody({
       <WorkoutSection step={3} title="Cooldown" meta={`about ${minutes(cooldown)} min`}>
         <ul className="drill-list">
           {cooldown.map((d) => (
-            <DrillRow key={d.id} drill={d} active={active} />
+            <DrillRow
+              key={d.id}
+              drill={d}
+              done={active?.checked.includes(d.id)}
+              onToggle={active && (() => active.toggleDrill(d.id))}
+              onPlay={active && (() => active.playFrom('drill', d.id))}
+            />
           ))}
         </ul>
       </WorkoutSection>
@@ -342,31 +389,6 @@ function WorkoutSection({ step, title, meta, children }: { step: number; title: 
       </header>
       {children}
     </section>
-  );
-}
-
-function DrillRow({ drill, active }: { drill: Drill; active?: ActiveControls }) {
-  const done = active?.checked.includes(drill.id);
-  const content = (
-    <>
-      <span className="drill__main">
-        <span className="drill__name">{drill.name}</span>
-        <span className="drill__cue">{drill.cue}</span>
-      </span>
-      <span className="drill__dose">{drill.dose}</span>
-    </>
-  );
-  return (
-    <li>
-      {active ? (
-        <button className={`drill drill--check${done ? ' is-done' : ''}`} aria-pressed={done} onClick={() => active.toggleDrill(drill.id)}>
-          {done ? <CircleCheck size={20} className="drill__check" aria-hidden /> : <Circle size={20} className="drill__check" aria-hidden />}
-          {content}
-        </button>
-      ) : (
-        <div className="drill">{content}</div>
-      )}
-    </li>
   );
 }
 
@@ -392,6 +414,11 @@ function ExerciseCard({ item, index, active }: { item: MainItem; index: number; 
           </a>
         </div>
         <span className={`tag plan-tag plan-tag--${item.kind}`}>{planKindLabel[item.kind]}</span>
+        {active && (
+          <button className="icon-btn icon-btn--sm" aria-label={`Follow along from ${ex.name}`} title="Follow along from here" onClick={() => active.playFrom('exercise', ex.id)}>
+            <Play size={16} aria-hidden />
+          </button>
+        )}
       </div>
       <div className="wx-card__plan">
         <strong>
@@ -403,6 +430,11 @@ function ExerciseCard({ item, index, active }: { item: MainItem; index: number; 
         </span>
       </div>
       <p className="wx-card__reason">{item.reason}</p>
+      {item.setup && (
+        <p className="wx-card__setup">
+          <Wrench size={14} aria-hidden /> {item.setup}
+        </p>
+      )}
       {active && <ActiveLogger item={item} active={active} />}
     </article>
   );
@@ -539,6 +571,24 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
   };
 
   const main: MainItem[] = active.main.map((m) => ({ ...m, exercise: exerciseById[m.exerciseId] }));
+  const steps = useMemo(() => guidedSteps(active, state.units), [active.startedAt, state.units]); // eslint-disable-line react-hooks/exhaustive-deps
+  const follow = (position?: number) => {
+    unlockSpeech();
+    session.setGuided(true, position);
+    scrollToTop();
+  };
+
+  if (active.guided) {
+    return (
+      <div className="page workout-page workout-page--active page--guided">
+        <header className="page-header">
+          <span className="eyebrow">Workout in progress</span>
+          <h1>{focusTitle(active.focus)}</h1>
+        </header>
+        <GuidedWorkout session={session} kcal={kcal} onFinish={finish} />
+      </div>
+    );
+  }
 
   return (
     <div className="page workout-page workout-page--active">
@@ -555,12 +605,29 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
         </div>
       </header>
 
+      <div className="card guided-resume">
+        <span>
+          <strong>Follow along</strong>
+          <span className="muted small">
+            One exercise at a time with a looping demo, timers, rest breaks and an announcer that counts you in.
+          </span>
+        </span>
+        <button className="btn btn--primary" onClick={() => follow()}>
+          <Play size={16} aria-hidden /> {active.position > 0 ? 'Resume' : 'Start'} guided workout
+        </button>
+      </div>
+
       <WorkoutBody
         warmup={active.warmup.map((id) => drillById[id])}
         cooldown={active.cooldown.map((id) => drillById[id])}
         notes={active.notes}
         main={main}
-        active={{ checked: active.checked, toggleDrill: session.toggleDrill, markLogged: session.markLogged }}
+        active={{
+          checked: active.checked,
+          toggleDrill: session.toggleDrill,
+          markLogged: session.markLogged,
+          playFrom: (kind, id) => follow(firstStepOf(steps, kind, id)),
+        }}
       />
 
       <div className="workout-footer">

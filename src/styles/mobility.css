@@ -1,0 +1,186 @@
+/* ---------- Daily mobility ---------- */
+
+.mobility-card h2 svg {
+  color: #ffa94d;
+}
+
+.mobility-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--routine) 40%, var(--border));
+  border-left: 4px solid var(--routine);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--routine) 9%, var(--surface-2));
+}
+
+.mobility-pick__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobility-pick__name {
+  font-size: 1.1rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.mobility-pick__name:hover {
+  text-decoration: underline;
+}
+
+.mobility-pick .btn {
+  flex: none;
+}
+
+@media (max-width: 480px) {
+  .mobility-pick {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.mobility-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 12px 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mobility-chip .dot {
+  background: var(--routine);
+}
+
+.mobility-chip:hover {
+  background: var(--surface-3);
+}
+
+.mobility-chip.is-done {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+
+.mobility-chip.is-done svg {
+  color: var(--success);
+}
+
+.mobility-chip__min {
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+/* ---------- Routine list and detail ---------- */
+
+.mobility-page {
+  display: grid;
+  gap: 16px;
+}
+
+.mobility-page .page-header {
+  margin-bottom: 0;
+}
+
+.routine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.routine-card {
+  border-top: 4px solid var(--routine);
+}
+
+.routine-card h2 {
+  flex-wrap: wrap;
+}
+
+.routine-card h2 a {
+  text-decoration: none;
+}
+
+.routine-card h2 a:hover {
+  text-decoration: underline;
+}
+
+.routine-card .chip,
+.routine-header .chip {
+  min-height: 28px;
+  border-left-color: var(--routine);
+  font-size: 0.8rem;
+}
+
+.routine-card .button-row {
+  margin-top: auto;
+}
+
+.tag--done {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.mobility-back {
+  justify-self: start;
+}
+
+.routine-header {
+  display: grid;
+  gap: 8px;
+}
+
+.routine-header h1 {
+  border-left: 4px solid var(--routine);
+  padding-left: 12px;
+}
+
+.routine-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  color: var(--text-2);
+}
+
+.routine-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.routine-start {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  border-color: color-mix(in srgb, var(--routine) 40%, var(--border));
+}
+
+.routine-start .btn {
+  flex: none;
+}
+
+@media (max-width: 600px) {
+  .routine-start {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

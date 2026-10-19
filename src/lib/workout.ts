@@ -1,24 +1,53 @@
-import { exerciseById, exercises, treeById, trees, type Exercise, type TreeId } from '../data';
+import { exerciseById, exercises, tracks, treeById, trees, type Equipment, type Exercise, type TreeId } from '../data';
 import { drills, type Drill } from '../data/drills';
 import { splits, type Split } from '../data/splits';
 import type { ProgressState } from '../state/progress';
+import { accessTo, alternativesTo } from './equipment';
 import { ancestorsOf, statusOf } from './graph';
-import { planSession, type SessionPlan } from './progression';
+import { planSession, restSeconds, type SessionPlan } from './progression';
 
 export type WorkoutLength = 'short' | 'standard' | 'long';
 
-export const LENGTHS: Record<WorkoutLength, { label: string; minutes: string; main: number; warmup: number; cooldown: number }> = {
-  short: { label: 'Short', minutes: '~30 min', main: 3, warmup: 4, cooldown: 3 },
-  standard: { label: 'Standard', minutes: '~45 min', main: 5, warmup: 6, cooldown: 4 },
-  long: { label: 'Long', minutes: '~60 min', main: 7, warmup: 7, cooldown: 5 },
+/**
+ * Main exercises: `perArea` for every chosen area up to `max` in all, but never fewer than MIN_PER_AREA per area
+ * (so every area gets real work, and more areas make a longer workout) or `main` in all (so a single area
+ * still gets a full session).
+ */
+export const LENGTHS: Record<
+  WorkoutLength,
+  { label: string; perArea: number; max: number; main: number; warmup: number; cooldown: number }
+> = {
+  short: { label: 'Short', perArea: 2, max: 6, main: 3, warmup: 4, cooldown: 3 },
+  standard: { label: 'Standard', perArea: 3, max: 12, main: 5, warmup: 6, cooldown: 4 },
+  long: { label: 'Long', perArea: 4, max: 16, main: 7, warmup: 7, cooldown: 5 },
 };
 
-export type Block = 'skill' | 'strength' | 'core';
+export const MIN_PER_AREA = 2;
+
+/** How far ahead (unmastered steps before it) a locked step can be to fill an area that's short of exercises. */
+const NEXT_UP_GAP = 2;
+
+/** How many main exercises a workout of this length has for this many areas. */
+export function mainCount(length: WorkoutLength, areas: number): number {
+  const cfg = LENGTHS[length];
+  return Math.max(cfg.main, areas * MIN_PER_AREA, Math.min(areas * cfg.perArea, cfg.max));
+}
+
+/** A mastered exercise comes back for a maintenance session once you haven't done it for this many days… */
+export const MAINTAIN_AFTER_DAYS = 7;
+/** …and an area gets at most one maintenance session in this many days, so it doesn't crowd out progress. */
+const MAINTAIN_GAP_DAYS = 3;
+
+export type Block = 'skill' | 'strength' | 'core' | 'therapy';
 
 export const BLOCKS: Record<Block, { label: string; note: string }> = {
   skill: { label: 'Skill work', note: 'Balance and static holds go first, while you are fresh.' },
   strength: { label: 'Strength', note: 'Alternate between exercises if you are training more than one area.' },
   core: { label: 'Core', note: 'Finish strong. Core work comes last so it does not tire you out for everything else.' },
+  therapy: {
+    label: 'Physical therapy & mobility',
+    note: 'Slow and controlled, in a pain-free range. A mild stretch is fine; sharp or spreading pain is not.',
+  },
 };
 
 const BLOCK_OF: Record<TreeId, Block> = {
@@ -26,13 +55,18 @@ const BLOCK_OF: Record<TreeId, Block> = {
   planche: 'skill',
   levers: 'skill',
   'muscle-up': 'skill',
+  breakdance: 'skill',
   push: 'strength',
   pull: 'strength',
   legs: 'strength',
   core: 'core',
+  shoulder: 'therapy',
+  'lower-back': 'therapy',
+  hips: 'therapy',
+  mobility: 'therapy',
 };
 
-const BLOCK_ORDER: Block[] = ['skill', 'strength', 'core'];
+const BLOCK_ORDER: Block[] = ['skill', 'strength', 'core', 'therapy'];
 
 export interface WorkoutExercise {
   exercise: Exercise;
@@ -42,6 +76,8 @@ export interface WorkoutExercise {
   why: string;
   /** The focus tree that asked for it (can differ from the exercise's own tree when building toward a locked tree). */
   focus: TreeId;
+  /** How to set up without the usual equipment, e.g. "Use two sturdy chairs as dip bars." */
+  setup?: string;
 }
 
 export interface Workout {
@@ -68,12 +104,6 @@ export function focusTitle(focus: TreeId[]): string {
   return split ? split.name : focus.map((t) => treeById[t].name).join(' + ');
 }
 
-function restSeconds(ex: Exercise): number {
-  if (ex.level <= 2) return 75;
-  if (ex.level <= 5) return 105;
-  return 150;
-}
-
 export function exerciseSeconds(ex: Exercise, sets: number, value: number): number {
   const work = (ex.target.unit === 'seconds' ? value : value * 3) * (ex.target.perSide ? 2 : 1);
   return sets * work + (sets - 1) * restSeconds(ex) + 60; // + set-up / moving between exercises
@@ -83,14 +113,122 @@ interface Candidate {
   exercise: Exercise;
   why: string;
   score: number;
+  setup?: string;
 }
 
-function candidatesFor(tree: TreeId, state: ProgressState, goalOf: Map<string, string>): { list: Candidate[]; note?: string } {
+/**
+ * Fits a tree's candidates to your equipment: exercises you can do with a stand-in get a setup note, and ones
+ * you can't do at all are swapped for the closest alternative you can do (each exercise appears once).
+ */
+function fitEquipment(list: Candidate[], have: Equipment[] | null): Candidate[] {
+  const out: Candidate[] = [];
+  const has = (id: string) => out.some((c) => c.exercise.id === id) || list.some((c) => c.exercise.id === id && accessTo(c.exercise, have).kind !== 'missing');
+  for (const c of list) {
+    const access = accessTo(c.exercise, have);
+    if (access.kind === 'ready') out.push(c);
+    else if (access.kind === 'substitute') out.push({ ...c, setup: access.note });
+    else {
+      const alt = alternativesTo(c.exercise, have, 5).find((a) => !has(a.id));
+      if (!alt) continue;
+      const altAccess = accessTo(alt, have);
+      out.push({
+        exercise: alt,
+        why: `Instead of ${c.exercise.name}`,
+        score: c.score - 1,
+        ...(altAccess.kind === 'substitute' && { setup: altAccess.note }),
+      });
+    }
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
+/** Tracks that start a progression of their own, rather than branching off another track in the same tree. */
+const mainTracks = new Set(
+  tracks.filter((t) => t.steps[0].requires.every((r) => exerciseById[r].tree !== t.tree)).map((t) => t.key),
+);
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const daysSince = (date: string, now: Date) => Math.round((startOfDay(now) - startOfDay(new Date(date))) / 86_400_000);
+
+interface Kept {
+  candidate: Candidate;
+  /** Not done for MAINTAIN_AFTER_DAYS or more, and the area hasn't had a maintenance session lately. */
+  due: boolean;
+}
+
+/**
+ * Mastered skills to keep sharp: the hardest mastered step of each of the tree's tracks (easier ones are covered
+ * by it). Stalest first, then finished tracks (nothing else trains them), then the harder skill.
+ */
+function maintenanceFor(tree: TreeId, state: ProgressState, now: Date): Kept[] {
   const { mastered, logs } = state;
+  const have = state.equipment?.have ?? null;
+  // Logged an already-mastered exercise in this tree in the last few days?
+  const maintainedLately = exercises.some(
+    (e) =>
+      e.tree === tree &&
+      mastered[e.id] &&
+      logs[e.id]?.some((l) => Date.parse(l.date) > Date.parse(mastered[e.id]) && daysSince(l.date, now) < MAINTAIN_GAP_DAYS),
+  );
+  const kept: (Kept & { days: number; finished: boolean })[] = [];
+  for (const track of tracks) {
+    if (track.tree !== tree) continue;
+    const i = track.steps.findLastIndex((s) => mastered[s.id]);
+    if (i < 0) continue;
+    const ex = track.steps[i];
+    if (ex.target.addedKg !== undefined && !logs[ex.id]?.length) continue;
+    const access = accessTo(ex, have);
+    if (access.kind === 'missing') continue;
+    const lastDone = [mastered[ex.id], ...(logs[ex.id] ?? []).map((l) => l.date)].reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
+    const days = daysSince(lastDone, now);
+    kept.push({
+      candidate: { exercise: ex, why: 'Mastered: keep it sharp', score: 0, ...(access.kind === 'substitute' && { setup: access.note }) },
+      due: days >= MAINTAIN_AFTER_DAYS && !maintainedLately,
+      days,
+      finished: i === track.steps.length - 1,
+    });
+  }
+  kept.sort((a, b) => b.days - a.days || Number(b.finished) - Number(a.finished) || b.candidate.exercise.level - a.candidate.exercise.level);
+  return kept.map(({ candidate, due }) => ({ candidate, due }));
+}
+
+/**
+ * Adds maintenance to a tree's list: one mastered skill that's due goes right after the goal path (or the first
+ * current step), so it comes back about once a week. One from a different progression is preferred; one from
+ * the same progression goes a place later, since it adds less variety. The rest fill in when there's nothing
+ * else left to train.
+ */
+function withMaintenance(list: Candidate[], kept: Kept[], goalOf: Map<string, string>): Candidate[] {
+  const ids = new Set(list.map((c) => c.exercise.id));
+  const rest = kept.filter((k) => !ids.has(k.candidate.exercise.id));
+  const at = Math.max(1, list.filter((c) => goalOf.has(c.exercise.id)).length);
+  const sameTrack = (k: Kept) => list.slice(0, at).some((c) => c.exercise.track === k.candidate.exercise.track);
+  const due = rest.find((k) => k.due && !sameTrack(k)) ?? rest.find((k) => k.due);
+  const after = rest.filter((k) => k !== due).map((k) => k.candidate);
+  if (!due) return [...list, ...after];
+  const pos = sameTrack(due) ? at + 1 : at;
+  return [...list.slice(0, pos), due.candidate, ...list.slice(pos), ...after];
+}
+
+function candidatesFor(
+  tree: TreeId,
+  focus: TreeId[],
+  state: ProgressState,
+  goalOf: Map<string, string>,
+  now: Date,
+): { list: Candidate[]; note?: string } {
+  const { mastered, logs } = state;
+  const have = state.equipment?.have ?? null;
   // Weighted exercises need equipment, so they only join workouts once you've logged one (or made it a goal).
   const needsWeights = (e: Exercise) => e.target.addedKg !== undefined && !logs[e.id]?.length && !goalOf.has(e.id);
+  // Main progressions (push-ups, dips, squats, hinges…) come before variations of them, so every area covers its
+  // basic movements first.
   const score = (e: Exercise) =>
-    (goalOf.has(e.id) ? 100 : 0) + (logs[e.id]?.length ? 20 : 0) + e.level * 2 - (needsWeights(e) ? 50 : 0);
+    (goalOf.has(e.id) ? 100 : 0) +
+    (logs[e.id]?.length ? 20 : 0) +
+    (mainTracks.has(e.track) ? 15 : 0) +
+    e.level * 2 -
+    (needsWeights(e) ? 50 : 0);
   const why = (e: Exercise) => {
     const goal = goalOf.get(e.id);
     if (goal) return goal === e.id ? 'Your goal' : `Toward ${exerciseById[goal].name}`;
@@ -98,39 +236,65 @@ function candidatesFor(tree: TreeId, state: ProgressState, goalOf: Map<string, s
     return `Your current step in ${e.trackName}`;
   };
   const inTree = exercises.filter((e) => e.tree === tree);
+  const kept = maintenanceFor(tree, state, now);
 
-  // Normal case: the unlocked, not-yet-mastered steps, which are exactly your current level.
+  // The steps (often in other trees) that lead into this tree's locked skills. Steps from another chosen area
+  // are left to that area, so they don't crowd out its own exercises.
+  const locked = inTree.filter((e) => statusOf(e.id, mastered) === 'locked');
+  const leadsIn = new Map<string, number>();
+  for (const e of locked) {
+    for (const a of ancestorsOf(e.id)) {
+      if (statusOf(a, mastered) !== 'available' || focus.includes(exerciseById[a].tree)) continue;
+      leadsIn.set(a, (leadsIn.get(a) ?? 0) + 1);
+    }
+  }
+  const leadIns = fitEquipment(
+    [...leadsIn].map(([id, count]) => {
+      const e = exerciseById[id];
+      return { exercise: e, why: `Builds toward ${treeById[tree].name}`, score: count * 10 + score(e) };
+    }),
+    have,
+  );
+  // Last resort for an area with too little unlocked to fill its share (say Handstand on a day you also train
+  // Core and Push, which take its lead-ins): steps a little ahead, the tree's own first, then ones leading into
+  // it. Locks are soft, and a new exercise starts at an easy prescription.
+  const ahead = new Set(locked.map((e) => e.id));
+  for (const e of locked) for (const a of ancestorsOf(e.id)) if (statusOf(a, mastered) === 'locked') ahead.add(a);
+  const nextUp = fitEquipment(
+    [...ahead]
+      .map((id) => exerciseById[id])
+      .filter((e) => e.target.addedKg === undefined)
+      .map((e) => ({ exercise: e, gap: [...ancestorsOf(e.id)].filter((a) => !mastered[a]).length }))
+      .filter(({ gap }) => gap <= NEXT_UP_GAP)
+      .map(({ exercise: e, gap }) => ({
+        exercise: e,
+        why: e.tree === tree ? `A step ahead in ${e.trackName}` : `A step ahead, toward ${treeById[tree].name}`,
+        score: (e.tree === tree ? 50 : 0) - gap * 10 - e.level,
+      })),
+    have,
+  );
+
+  // Normal case: the unlocked, not-yet-mastered steps (one per track), which are exactly your current level,
+  // topped up with steps that lead into the rest of the tree when there are only a few.
   const available = inTree.filter((e) => statusOf(e.id, mastered) === 'available');
   if (available.length) {
-    return { list: available.map((e) => ({ exercise: e, why: why(e), score: score(e) })).sort((a, b) => b.score - a.score) };
+    const list = fitEquipment(available.map((e) => ({ exercise: e, why: why(e), score: score(e) })), have);
+    return { list: withMaintenance([...list, ...leadIns, ...nextUp], kept, goalOf) };
   }
 
-  // Nothing unlocked yet: train the steps (often in other trees) that lead into this tree.
-  const locked = inTree.filter((e) => statusOf(e.id, mastered) === 'locked');
+  // Nothing unlocked yet: train the steps that lead into this tree.
   if (locked.length) {
-    const leadsIn = new Map<string, number>();
-    for (const e of locked) {
-      for (const a of ancestorsOf(e.id)) {
-        if (statusOf(a, mastered) === 'available') leadsIn.set(a, (leadsIn.get(a) ?? 0) + 1);
-      }
-    }
-    const list = [...leadsIn]
-      .map(([id, count]) => {
-        const e = exerciseById[id];
-        return { exercise: e, why: `Builds toward ${treeById[tree].name}`, score: count * 10 + score(e) };
-      })
-      .sort((a, b) => b.score - a.score);
     return {
-      list,
+      list: withMaintenance([...leadIns, ...nextUp], kept, goalOf),
       note: `${treeById[tree].name} isn't unlocked yet, so this workout trains the steps that lead into it.`,
     };
   }
 
-  // Everything mastered: maintain the hardest skills.
-  const list = [...inTree]
-    .sort((a, b) => b.level - a.level)
-    .map((e) => ({ exercise: e, why: 'Maintenance', score: e.level }));
-  return { list, note: `You've mastered every ${treeById[tree].name} skill, so this includes maintenance sets.` };
+  // Everything mastered: keep the skills sharp, and keep beating your best.
+  return {
+    list: kept.map((k) => k.candidate),
+    note: `You've mastered every ${treeById[tree].name} skill, so this includes maintenance sets.`,
+  };
 }
 
 function pickDrills(phase: Drill['phase'], focus: TreeId[], count: number): Drill[] {
@@ -182,13 +346,13 @@ export function generateWorkout(
   const notes: string[] = [];
   const pools = new Map<TreeId, Candidate[]>();
   for (const t of focus) {
-    const { list, note } = candidatesFor(t, state, goalOf);
+    const { list, note } = candidatesFor(t, focus, state, goalOf, now);
     pools.set(t, list);
     if (note) notes.push(note);
   }
 
-  // Share the exercise budget across trees. Trees with a goal on them get any spare slots first.
-  const total = Math.max(cfg.main, focus.length);
+  // Every area gets its share of the exercises. Trees with a goal on them get any spare slots first.
+  const total = mainCount(length, focus.length);
   const priority = [...focus].sort(
     (a, b) => Number((pools.get(b) ?? []).some((c) => goalOf.has(c.exercise.id))) - Number((pools.get(a) ?? []).some((c) => goalOf.has(c.exercise.id))),
   );
@@ -226,9 +390,13 @@ export function generateWorkout(
       block: BLOCK_OF[ex.tree],
       why: candidate.why,
       focus: t,
+      ...(candidate.setup && { setup: candidate.setup }),
     };
   });
-  // Skills first, then strength (kept interleaved across trees), then core.
+  if (main.some((m) => m.why.startsWith('Instead of'))) {
+    notes.push('Some exercises were swapped for ones your equipment allows. Update your equipment any time on the Equipment page.');
+  }
+  // Skills first, then strength (kept interleaved across trees), then core, then physical therapy and mobility.
   main.sort((a, b) => BLOCK_ORDER.indexOf(a.block) - BLOCK_ORDER.indexOf(b.block));
 
   const warmup = pickDrills('warmup', focus, cfg.warmup);
@@ -248,6 +416,12 @@ export function generateWorkout(
   return { focus, length, warmup, main, cooldown, minutes: Math.round(seconds / 60), notes };
 }
 
+/** Estimated minutes of a workout of each length for these areas, for the length pickers. */
+export function minutesByLength(state: ProgressState, focus: TreeId[], now = new Date()): Record<WorkoutLength, number> {
+  const lengths = Object.keys(LENGTHS) as WorkoutLength[];
+  return Object.fromEntries(lengths.map((l) => [l, generateWorkout(state, focus, l, now).minutes])) as Record<WorkoutLength, number>;
+}
+
 // ---------- Suggested split for today ----------
 
 export interface SplitSuggestion {
@@ -263,7 +437,6 @@ export function daysSinceTrained(tree: TreeId, state: ProgressState, now = new D
     for (const l of list) latest = Math.max(latest, Date.parse(l.date));
   }
   if (!latest) return Infinity;
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   return Math.round((startOfDay(now) - startOfDay(new Date(latest))) / 86_400_000);
 }
 
@@ -285,7 +458,7 @@ export function suggestSplit(state: ProgressState, now = new Date()): SplitSugge
 
   let best: { split: Split; score: number; days: number[] } | null = null;
   for (const split of splits) {
-    if (!split.focus.every((t) => isUnlocked(t, state))) continue;
+    if (split.restDay || !split.focus.every((t) => isUnlocked(t, state))) continue;
     const days = split.focus.map((t) => daysSinceTrained(t, state, now));
     // Never-trained trees count as moderately rested, so new skill trees don't crowd out your regular rotation.
     const fresh = days.map((d) => (d === Infinity ? NEVER_TRAINED_DAYS : Math.min(d, 7)));
@@ -295,8 +468,8 @@ export function suggestSplit(state: ProgressState, now = new Date()): SplitSugge
   }
   if (!best) {
     return {
-      split: splits.find((s) => s.id === 'handstand-core')!,
-      reason: 'Most areas were trained in the last day or two. Keep it light with balance and core work.',
+      split: splits.find((s) => s.restDay)!,
+      reason: 'Most areas were trained in the last day or two. Make it a recovery day: shoulders, back, hips and mobility.',
     };
   }
   const parts = best.split.focus.map((t, i) => {

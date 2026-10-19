@@ -1,17 +1,22 @@
+import { breakdance } from './trees/breakdance';
 import { core } from './trees/core';
 import { handstand } from './trees/handstand';
+import { hips } from './trees/hips';
 import { legs } from './trees/legs';
 import { levers } from './trees/levers';
+import { lowerBack } from './trees/lowerBack';
+import { mobility } from './trees/mobility';
 import { muscleUp } from './trees/muscleUp';
 import { planche } from './trees/planche';
 import { pull } from './trees/pull';
 import { push } from './trees/push';
+import { shoulder } from './trees/shoulder';
 import type { Exercise, Track, TreeDef, TreeId } from './types';
 
-export type { Exercise, Target, Track, TreeDef, TreeId, Unit } from './types';
+export type { Equipment, Exercise, Target, Track, TreeDef, TreeId, Unit } from './types';
 
 /** Display order of the trees. */
-export const trees: TreeDef[] = [push, pull, core, legs, handstand, planche, levers, muscleUp];
+export const trees: TreeDef[] = [push, pull, core, legs, handstand, planche, levers, muscleUp, breakdance, shoulder, lowerBack, hips, mobility];
 
 export const treeById = Object.fromEntries(trees.map((t) => [t.id, t])) as Record<TreeId, TreeDef>;
 

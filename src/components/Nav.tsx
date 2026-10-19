@@ -13,7 +13,11 @@ const items = [
 ] as const;
 
 function isActive(route: Route, name: string) {
-  return route.name === name || (name === 'train' && route.name === 'start');
+  return (
+    route.name === name ||
+    (name === 'train' && (route.name === 'start' || route.name === 'mobility')) ||
+    (name === 'settings' && ['equipment', 'privacy', 'terms'].includes(route.name))
+  );
 }
 
 function NavLinks({ route, className }: { route: Route; className: string }) {

@@ -1,4 +1,4 @@
-import { dependentsOf, exerciseById, trackByKey, type Exercise } from '../data';
+import { dependentsOf, exerciseById, trackByKey, treeById, type Exercise } from '../data';
 import type { LogEntry, Work } from '../state/progress';
 import { formatSet } from './format';
 import { formatAdded, formatWeight, loadStepKg, snapLoad, type Units } from './units';
@@ -56,10 +56,21 @@ export function startValue(ex: Exercise): number {
   return Math.max(1, Math.ceil(half));
 }
 
+/**
+ * Rest between sets, in seconds. Physical therapy and easy steps only need a short breather; strength sets
+ * worked close to your limit need a couple of minutes to recover.
+ */
+export function restSeconds(ex: Exercise): number {
+  if (treeById[ex.tree].kind === 'therapy') return 30;
+  if (ex.target.addedKg !== undefined || ex.level >= 6) return 150;
+  if (ex.level <= 2) return 45;
+  return 120;
+}
+
 export function restFor(ex: Exercise): string {
-  if (ex.level <= 2) return '60–90 s';
-  if (ex.level <= 5) return '90 s – 2 min';
-  return '2–3 min';
+  const s = restSeconds(ex);
+  if (s >= 150) return '2–3 min';
+  return s >= 60 ? `${s / 60} min` : `${s} s`;
 }
 
 const added = (w: SetsValue) => w.addedKg ?? 0;
@@ -123,16 +134,7 @@ export function planSession(
     sessionsToMastery: sessionsToMastery(ex, plan),
   });
 
-  if (mastered) {
-    return make(
-      'maintain',
-      target,
-      `Maintain ${fmt(target)}`,
-      next
-        ? `You've mastered this. Keep it sharp in your warm-ups and put your effort into ${next.name}.`
-        : `You've mastered this. Keep it sharp with a set or two in your warm-ups.`,
-    );
-  }
+  if (mastered) return planMastered(ex, logs, now, fmt, next);
 
   if (!last) {
     const start = { sets: target.sets, value: startValue(ex) };
@@ -231,6 +233,58 @@ export function planSession(
       ? `You've done ${fmt(last)} for ${streak} sessions in a row, so it's time to push: aim for ${plan.value} ${unitWord(ex, plan.value)} per set, even if the last set is a grind.`
       : `You hit ${fmt(last)} last time. Go for ${step} more ${unitWord(ex, step)} per set.`;
   return make('progress', plan, `Level up: ${fmt(plan)}`, reason);
+}
+
+/** How far past the mastery target a mastered exercise keeps adding reps (or seconds): up to twice it. */
+const MAX_PAST_TARGET = 2;
+
+/**
+ * A mastered bodyweight exercise is open-ended, like a weighted one: hit the target (or your recent best) to
+ * maintain it, and each time you complete the plan, the next session adds reps (or seconds) so your max keeps
+ * growing, up to twice the target.
+ */
+function planMastered(
+  ex: Exercise,
+  logs: LogEntry[],
+  now: Date,
+  fmt: (p: SetsValue) => string,
+  next: Exercise | undefined,
+): SessionPlan {
+  const target = ex.target;
+  const cap = target.value * MAX_PAST_TARGET;
+  const last = logs[0];
+  const recent = !!last && Math.floor((now.getTime() - Date.parse(last.date)) / DAY) < RETURN_AFTER_DAYS;
+  const make = (kind: PlanKind, plan: SetsValue, headline: string, reason: string): SessionPlan => ({
+    kind,
+    sets: plan.sets,
+    value: plan.value,
+    headline,
+    reason,
+    rest: restFor(ex),
+    sessionsToMastery: sessionsToMastery(ex, plan),
+  });
+
+  if (recent && last.planned && meets(last, last.planned) && meets(last, target) && last.value < cap) {
+    const plan = { sets: target.sets, value: Math.min(cap, last.value + stepFor(ex)) };
+    const more = plan.value - last.value;
+    return make(
+      'progress',
+      plan,
+      `Beat your best: ${fmt(plan)}`,
+      `You did ${fmt(last)} as planned. Mastered skills can keep improving: go for ${more} more ${unitWord(ex, more)} per set, or hit ${fmt(target)} to maintain it.`,
+    );
+  }
+
+  const plan = { sets: target.sets, value: recent && meets(last, target) ? Math.min(cap, last.value) : target.value };
+  const focus = next ? ` Your main progress is now ${next.name}.` : '';
+  return make(
+    'maintain',
+    plan,
+    `Maintain ${fmt(plan)}`,
+    plan.value >= cap
+      ? `You've mastered this at twice the target. Hit ${fmt(plan)} to keep it sharp.${focus}`
+      : `You've mastered this. Hit ${fmt(plan)} to keep it sharp; complete it and the next session adds ${unitWord(ex, 2)}, so your max keeps growing.${focus}`,
+  );
 }
 
 /**

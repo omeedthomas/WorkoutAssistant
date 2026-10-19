@@ -6,7 +6,7 @@ import { dayCalories, DEFAULT_BODY_KG, workoutCalories } from '../lib/calories';
 import { formatWork, pct } from '../lib/format';
 import { bodyWeightOn, daySummaries, dayTotals, type DaySummary } from '../lib/history';
 import { navigate, skillHref, toHash } from '../lib/router';
-import { focusTitle, generateWorkout, LENGTHS, sameFocus, sortFocus, type WorkoutLength } from '../lib/workout';
+import { focusTitle, generateWorkout, LENGTHS, minutesByLength, sameFocus, sortFocus, type WorkoutLength } from '../lib/workout';
 import { loadActiveWorkout, saveActiveWorkout, snapshot, workoutProgress, type ActiveWorkout } from '../state/activeWorkout';
 import { localDay, type WorkoutPlan } from '../state/progress';
 import { useProgress } from '../state/ProgressContext';
@@ -32,14 +32,19 @@ export function TodayCard() {
         onSave={(next) => {
           setWorkoutPlan(next);
           setEditing(false);
-          toast(plan ? 'Workout plan updated' : 'Workout plan saved', `${focusTitle(next.focus)}, ${LENGTHS[next.length].minutes}`);
+          toast(
+            plan ? 'Workout plan updated' : 'Workout plan saved',
+            `${focusTitle(next.focus)}, about ${generateWorkout(state, next.focus, next.length).minutes} min`,
+          );
         }}
         onCancel={plan ? () => setEditing(false) : undefined}
       />
     );
   }
   if (active) return <InProgress active={active} />;
-  if (summary?.trained) return <GreatJob summary={summary} plan={plan} onEdit={() => setEditing(true)} />;
+  // A morning mobility routine isn't the day's workout, so it doesn't count as done here.
+  const trained = !!summary && (summary.sessions.length > 0 || summary.workouts.some((w) => w.finishedAt && !w.routine));
+  if (summary && trained) return <GreatJob summary={summary} plan={plan} onEdit={() => setEditing(true)} />;
   return <PlannedWorkout plan={plan} onEdit={() => setEditing(true)} />;
 }
 
@@ -76,6 +81,7 @@ function PlanEditor({
   const [focus, setFocus] = useState<TreeId[]>(plan?.focus ?? []);
   const [length, setLength] = useState<WorkoutLength>(plan?.length ?? 'standard');
   const preview = useMemo(() => (focus.length ? generateWorkout(state, focus, length) : null), [state, focus, length]);
+  const minutes = useMemo(() => (focus.length ? minutesByLength(state, focus) : null), [state, focus]);
   const toggle = (t: TreeId) => setFocus((f) => sortFocus(f.includes(t) ? f.filter((x) => x !== t) : [...f, t]));
 
   return (
@@ -127,7 +133,7 @@ function PlanEditor({
         <div className="segmented" role="group" aria-label="Workout length">
           {(Object.keys(LENGTHS) as WorkoutLength[]).map((l) => (
             <button key={l} aria-pressed={length === l} onClick={() => setLength(l)}>
-              {LENGTHS[l].label} <span className="muted">{LENGTHS[l].minutes}</span>
+              {LENGTHS[l].label} {minutes && <span className="muted">~{minutes[l]} min</span>}
             </button>
           ))}
         </div>

@@ -11,9 +11,10 @@ export const emptyProgress: ProgressState = {
   weightGoal: null,
   units: 'lb',
   workoutPlan: null,
+  equipment: null,
 };
 
-/** Nothing worth keeping: no mastered skills, sessions, goals, workouts, weigh-ins or plan. */
+/** Nothing worth keeping: no mastered skills, sessions, goals, workouts, weigh-ins, plan or equipment. */
 export function isPristine(s: ProgressState): boolean {
   return (
     Object.keys(s.mastered).length === 0 &&
@@ -22,7 +23,8 @@ export function isPristine(s: ProgressState): boolean {
     Object.keys(s.workouts).length === 0 &&
     Object.keys(s.weight).length === 0 &&
     s.weightGoal === null &&
-    s.workoutPlan === null
+    s.workoutPlan === null &&
+    s.equipment === null
   );
 }
 
@@ -66,13 +68,15 @@ export function mergeProgress(local: ProgressState, remote: ProgressState): Prog
     workouts[day] = [...byStart.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   }
 
-  // One weigh-in per day, one weight goal and one workout plan: the most recently entered wins.
+  // One weigh-in per day, one weight goal, one workout plan and one equipment list: the most recently entered wins.
   const weight = { ...remote.weight };
   for (const [day, w] of Object.entries(local.weight)) if (!weight[day] || w.at > weight[day].at) weight[day] = w;
   const [a, b] = [local.weightGoal, remote.weightGoal];
   const weightGoal = a && b ? (a.at >= b.at ? a : b) : (a ?? b);
   const [lp, rp] = [local.workoutPlan, remote.workoutPlan];
   const workoutPlan = lp && rp ? (lp.at >= rp.at ? lp : rp) : (lp ?? rp);
+  const [le, re] = [local.equipment, remote.equipment];
+  const equipment = le && re ? (le.at >= re.at ? le : re) : (le ?? re);
 
   const goals = [...new Set([...remote.goals, ...local.goals])].slice(0, MAX_GOALS);
   return {
@@ -86,5 +90,6 @@ export function mergeProgress(local: ProgressState, remote: ProgressState): Prog
     weightGoal,
     units: local.units,
     workoutPlan,
+    equipment,
   };
 }

@@ -7,6 +7,7 @@ export const push: TreeDef = {
   tagline: 'Push-ups and dips: the pressing base for almost every skill.',
   color: '#f03e3e',
   ultimate: 'one-arm-pushup',
+  kind: 'skill',
   tracks: [
     {
       id: 'pushups',
@@ -206,6 +207,7 @@ export const push: TreeDef = {
           name: 'Support Hold',
           level: 2,
           target: hold(3, 30),
+          equipment: ['dip-bars'],
           description:
             'Hold yourself up on parallel bars (or two sturdy chairs) with locked arms. This is the top position of every dip.',
           cues: [
@@ -219,6 +221,7 @@ export const push: TreeDef = {
           name: 'Negative Dip',
           level: 3,
           target: reps(3, 5),
+          equipment: ['dip-bars'],
           description:
             'Start at the top and take five seconds to lower to the bottom of a dip. Step back up and repeat.',
           cues: [
@@ -232,6 +235,7 @@ export const push: TreeDef = {
           name: 'Parallel Bar Dip',
           level: 4,
           target: reps(3, 10),
+          equipment: ['dip-bars'],
           description: 'A full dip on parallel bars: one of the best upper-body strength builders.',
           cues: [
             'Full depth: shoulders below elbows',
@@ -244,6 +248,8 @@ export const push: TreeDef = {
           name: 'Straight Bar Dip',
           level: 5,
           target: reps(3, 8),
+          equipment: ['pullup-bar'],
+          alternatives: ['dip'],
           description:
             'A dip on top of a single bar. This is the finishing half of the bar muscle-up.',
           cues: [
@@ -264,6 +270,8 @@ export const push: TreeDef = {
           name: 'Ring Support Hold',
           level: 5,
           target: hold(3, 30),
+          equipment: ['rings'],
+          alternatives: ['dip-support-hold'],
           description:
             'Support hold on gymnastic rings. The rings shake, so your stabilizers have to work hard.',
           cues: [
@@ -277,6 +285,8 @@ export const push: TreeDef = {
           name: 'Ring Dip',
           level: 6,
           target: reps(3, 8),
+          equipment: ['rings'],
+          alternatives: ['dip'],
           description:
             'A full dip on rings: harder than bars because you have to control the rings through the whole rep.',
           cues: [
@@ -317,6 +327,7 @@ export const push: TreeDef = {
           name: 'Weighted Dip',
           level: 6,
           target: weighted(3, 6, 20),
+          equipment: ['dip-bars'],
           description:
             'Parallel bar dips with a dip belt, vest or a dumbbell held between your feet. One of the best ways to build pressing strength once bodyweight dips are easy.',
           cues: [
@@ -324,6 +335,46 @@ export const push: TreeDef = {
             'Keep the weight still: no swinging',
             'Lock out fully at the top of every rep',
           ],
+        },
+      ],
+    },
+    {
+      id: 'unstable-pushups',
+      name: 'Push-ups on Unstable Surfaces',
+      from: ['pushup'],
+      steps: [
+        {
+          id: 'bosu-pushup',
+          name: 'BOSU Push-up',
+          level: 4,
+          target: reps(3, 10),
+          equipment: ['bosu'],
+          alternatives: ['diamond-pushup', 'decline-pushup'],
+          description:
+            'A push-up with your hands on the dome of a BOSU ball. The wobble makes your shoulders and core work harder to stay stable.',
+          cues: ['Hands on the dome, a little narrower than usual', 'Body in one straight line', 'Lower slowly and stay in control'],
+        },
+        {
+          id: 'bosu-flat-pushup',
+          name: 'BOSU Platform Push-up',
+          level: 5,
+          target: reps(3, 8),
+          equipment: ['bosu'],
+          alternatives: ['archer-pushup'],
+          description:
+            'Flip the BOSU over and grip the edges of the flat platform. It tilts in every direction, so every rep is a balance challenge for the shoulders.',
+          cues: ['Grip the edges firmly', 'Keep the platform level all the way down', 'Elbows about 45° from your body'],
+        },
+        {
+          id: 'stability-ball-pushup',
+          name: 'Exercise Ball Push-up',
+          level: 6,
+          target: reps(3, 8),
+          equipment: ['stability-ball'],
+          alternatives: ['incline-one-arm-pushup', 'pseudo-planche-pushup'],
+          description:
+            'A push-up with both hands on an exercise ball. The hardest unstable push-up: the ball wants to roll out from under you on every rep.',
+          cues: ['Hands on the sides of the ball', 'Squeeze the ball as you press', 'Start against a wall to stop it rolling'],
         },
       ],
     },

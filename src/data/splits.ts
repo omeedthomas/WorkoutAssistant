@@ -6,6 +6,8 @@ export interface Split {
   name: string;
   focus: TreeId[];
   description: string;
+  /** A lighter day for when everything else needs rest; never picked as "most rested". */
+  restDay?: boolean;
 }
 
 export const splits: Split[] = [
@@ -44,6 +46,13 @@ export const splits: Split[] = [
     name: 'Full body',
     focus: ['push', 'pull', 'legs', 'core'],
     description: 'A bit of everything. Ideal when you train 2–3 days a week.',
+  },
+  {
+    id: 'recovery',
+    name: 'Recovery & mobility',
+    focus: ['shoulder', 'lower-back', 'hips', 'mobility'],
+    description: 'Physical therapy and mobility for shoulders, lower back, hips and hamstrings. Great on rest days.',
+    restDay: true,
   },
 ];
 

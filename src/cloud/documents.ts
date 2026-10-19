@@ -1,13 +1,13 @@
 import { exerciseById, type Unit } from '../data';
 import type { Units } from '../lib/units';
-import { localDay, type ProgressState, type WeighIn, type WeightGoal, type Work, type WorkoutPlan, type WorkoutRecord } from '../state/progress';
+import { localDay, type ProgressState, type OwnedEquipment, type WeighIn, type WeightGoal, type Work, type WorkoutPlan, type WorkoutRecord } from '../state/progress';
 import { stable } from './merge';
 import type { CloudDocs, SaveOps } from './types';
 
 /**
  * How progress is laid out in the cloud. In Google Drive:
  *
- *   Ascent/progress.json                        ← `progress`: mastered skills, goals, weight goal, units, workout plan
+ *   Ascent/progress.json                        ← `progress`: mastered skills, goals, weight goal, units, workout plan, equipment
  *   Ascent/workouts/2026-10-18 Push + Pull.json ← `day:2026-10-18`: that day's workouts, every logged set and the weigh-in
  *
  * Files are plain, readable JSON (exercise names and units included), so you
@@ -28,6 +28,7 @@ export interface ProgressDoc {
   weightGoal: WeightGoal | null;
   units: Units;
   workoutPlan: WorkoutPlan | null;
+  equipment: OwnedEquipment | null;
 }
 
 export interface DaySession {
@@ -74,6 +75,7 @@ export function toDocs(state: ProgressState): CloudDocs {
     weightGoal: state.weightGoal,
     units: state.units,
     workoutPlan: state.workoutPlan,
+    equipment: state.equipment,
   };
   const docs: CloudDocs = { [PROGRESS_KEY]: progress };
 
@@ -162,6 +164,7 @@ export function fromDocs(docs: CloudDocs): unknown {
     weightGoal: progress.weightGoal ?? null,
     units: progress.units,
     workoutPlan: progress.workoutPlan ?? null,
+    equipment: progress.equipment ?? null,
   };
 }
 

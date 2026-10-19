@@ -10,6 +10,7 @@ import {
   sanitizeProgress,
   type LogEntry,
   type ProgressState,
+  type OwnedEquipment,
   type Work,
   type WorkoutPlan,
   type WorkoutRecord,
@@ -50,6 +51,8 @@ export interface ProgressApi {
   setUnits: (units: Units) => void;
   /** Saves (or clears) the areas you train and how long, for Home's daily workout. */
   setWorkoutPlan: (plan: Omit<WorkoutPlan, 'at'> | null) => void;
+  /** Saves the equipment you have (null forgets it, so nothing is filtered). */
+  setEquipment: (have: OwnedEquipment['have'] | null) => void;
   reset: () => void;
   importState: (raw: unknown) => boolean;
 }
@@ -117,6 +120,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       setWeightGoal: (kg) => dispatch({ type: 'setWeightGoal', goal: kg === null ? null : { kg, at: now() } }),
       setUnits: (units) => dispatch({ type: 'setUnits', units }),
       setWorkoutPlan: (plan) => dispatch({ type: 'setWorkoutPlan', plan: plan && { ...plan, at: now() } }),
+      setEquipment: (have) => dispatch({ type: 'setEquipment', equipment: have && { have, at: now() } }),
       reset: () => dispatch({ type: 'reset' }),
       importState(raw) {
         const next = sanitizeProgress(raw);

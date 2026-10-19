@@ -7,6 +7,7 @@ export const muscleUp: TreeDef = {
   tagline: 'Pull and dip in one move, on the bar and on rings.',
   color: '#d6336c',
   ultimate: 'strict-bar-muscle-up',
+  kind: 'skill',
   tracks: [
     {
       id: 'high-pull',
@@ -18,6 +19,8 @@ export const muscleUp: TreeDef = {
           name: 'High Pull-up',
           level: 5,
           target: reps(3, 5),
+          equipment: ['pullup-bar'],
+          alternatives: ['explosive-pushup', 'australian-row'],
           description:
             'An explosive pull-up that brings the bar down to your lower chest or stomach. This height is what gets you over the bar.',
           cues: [
@@ -38,6 +41,8 @@ export const muscleUp: TreeDef = {
           name: 'Jumping Muscle-up',
           level: 5,
           target: reps(3, 5),
+          equipment: ['pullup-bar'],
+          alternatives: ['explosive-pushup', 'australian-row'],
           description:
             'Use a low bar or box and jump to help yourself through the transition. Teaches the path over the bar.',
           cues: [
@@ -51,6 +56,8 @@ export const muscleUp: TreeDef = {
           name: 'Muscle-up Negative',
           level: 5,
           target: reps(3, 3),
+          equipment: ['pullup-bar'],
+          alternatives: ['dip', 'australian-row'],
           description:
             'Start on top of the bar and lower yourself slowly through the transition to a hang.',
           cues: [
@@ -64,6 +71,8 @@ export const muscleUp: TreeDef = {
           name: 'Bar Muscle-up',
           level: 7,
           target: reps(3, 3),
+          equipment: ['pullup-bar'],
+          alternatives: ['clap-pushup', 'feet-elevated-row'],
           requires: ['high-pullup'],
           description: 'Pull-up, transition and dip in one fluid motion over the bar.',
           cues: [
@@ -77,6 +86,8 @@ export const muscleUp: TreeDef = {
           name: 'Strict Bar Muscle-up',
           level: 8,
           target: reps(3, 2),
+          equipment: ['pullup-bar'],
+          alternatives: ['clap-pushup', 'archer-row'],
           description: 'A bar muscle-up from a dead hang with no swing.',
           cues: ['Start from a still hang', 'Lean back slightly as you pull', 'Slow, controlled transition'],
         },
@@ -92,6 +103,8 @@ export const muscleUp: TreeDef = {
           name: 'False Grip Hang',
           level: 3,
           target: hold(3, 20),
+          equipment: ['rings', 'pullup-bar'],
+          alternatives: ['australian-row'],
           description:
             'Hang from rings with your wrists bent over the rings. This grip is what makes the ring transition possible.',
           cues: [
@@ -105,6 +118,8 @@ export const muscleUp: TreeDef = {
           name: 'False Grip Pull-up',
           level: 5,
           target: reps(3, 5),
+          equipment: ['rings', 'pullup-bar'],
+          alternatives: ['feet-elevated-row'],
           requires: ['pullup'],
           description: 'Ring pull-ups while holding the false grip the whole set.',
           cues: ['Pull the rings to your chest', "Don't lose the grip at the bottom", 'Elbows close to your sides'],
@@ -114,6 +129,8 @@ export const muscleUp: TreeDef = {
           name: 'Low Ring Transition',
           level: 6,
           target: reps(3, 5),
+          equipment: ['rings'],
+          alternatives: ['dip', 'feet-elevated-row'],
           requires: ['ring-dip'],
           description:
             'With low rings and your feet on the floor, practice rolling from the top of a pull-up into the bottom of a dip.',
@@ -128,6 +145,8 @@ export const muscleUp: TreeDef = {
           name: 'Ring Muscle-up',
           level: 7,
           target: reps(3, 3),
+          equipment: ['rings'],
+          alternatives: ['dip', 'archer-row'],
           description: 'The full ring muscle-up: false grip pull, transition and ring dip.',
           cues: [
             'Pull the rings to your lower chest',

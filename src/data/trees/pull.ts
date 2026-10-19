@@ -7,6 +7,7 @@ export const pull: TreeDef = {
   tagline: 'From your first dead hang to the one-arm chin-up.',
   color: '#1c7ed6',
   ultimate: 'one-arm-chinup',
+  kind: 'skill',
   tracks: [
     {
       id: 'pullups',
@@ -17,6 +18,7 @@ export const pull: TreeDef = {
           name: 'Dead Hang',
           level: 1,
           target: hold(3, 30),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Hang from a bar with straight arms. Builds grip strength and gets your shoulders used to hanging.',
           cues: [
@@ -30,6 +32,7 @@ export const pull: TreeDef = {
           name: 'Scapular Pull',
           level: 1,
           target: reps(3, 10),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'From a dead hang, pull your shoulder blades down and back without bending your arms. This is how every pull-up starts.',
           cues: [
@@ -43,6 +46,7 @@ export const pull: TreeDef = {
           name: 'Flexed-arm Hang',
           level: 2,
           target: hold(3, 15),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Hold the top of a pull-up with your chin over the bar. Builds strength where most people fail.',
           cues: [
@@ -56,6 +60,7 @@ export const pull: TreeDef = {
           name: 'Negative Pull-up',
           level: 2,
           target: reps(3, 5),
+          equipment: ['pullup-bar', 'rings'],
           requires: ['australian-row'],
           description:
             'Start at the top and lower yourself as slowly as you can. Lowering is the fastest way to build your first pull-up.',
@@ -70,6 +75,7 @@ export const pull: TreeDef = {
           name: 'Pull-up',
           level: 3,
           target: reps(3, 8),
+          equipment: ['pullup-bar', 'rings'],
           description: 'Overhand grip, dead hang to chin over the bar. The king of pulling exercises.',
           cues: [
             'Start every rep from straight arms',
@@ -82,6 +88,7 @@ export const pull: TreeDef = {
           name: 'Chest-to-bar Pull-up',
           level: 4,
           target: reps(3, 6),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Pull high enough that your chest touches the bar. You need this range for muscle-ups.',
           cues: [
@@ -102,6 +109,7 @@ export const pull: TreeDef = {
           name: 'Chin-up',
           level: 3,
           target: reps(3, 8),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Underhand grip pull-up. Uses more biceps, and is often the first full rep people get.',
           cues: [
@@ -122,6 +130,7 @@ export const pull: TreeDef = {
           name: 'Archer Pull-up',
           level: 5,
           target: repsEach(3, 4),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Wide grip. Pull toward one hand while the other arm straightens along the bar.',
           cues: [
@@ -135,6 +144,7 @@ export const pull: TreeDef = {
           name: 'One-arm Negative',
           level: 7,
           target: repsEach(3, 3),
+          equipment: ['pullup-bar', 'rings'],
           requires: ['chinup'],
           description:
             'Get to the top with both arms, let go with one hand, and lower yourself as slowly as you can.',
@@ -149,6 +159,7 @@ export const pull: TreeDef = {
           name: 'One-arm Chin-up',
           level: 9,
           target: repsEach(3, 2),
+          equipment: ['pullup-bar', 'rings'],
           description: 'A full chin-up on one arm. Very few people ever get one.',
           cues: [
             'Start from a slightly bent arm until you are stronger',
@@ -168,6 +179,7 @@ export const pull: TreeDef = {
           name: 'L-sit Pull-up',
           level: 5,
           target: reps(3, 6),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Pull-up with your legs held straight out in front. Makes your abs and lats work together.',
           cues: [
@@ -258,6 +270,7 @@ export const pull: TreeDef = {
           name: 'Weighted Pull-up',
           level: 6,
           target: weighted(3, 5, 20),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Pull-ups with a dip belt, vest or a dumbbell between your feet. Log the added weight and add a little each time you complete the plan.',
           cues: [
@@ -278,6 +291,7 @@ export const pull: TreeDef = {
           name: 'Weighted Chin-up',
           level: 5,
           target: weighted(3, 5, 20),
+          equipment: ['pullup-bar', 'rings'],
           description:
             'Chin-ups (palms facing you) with added weight. A little easier than weighted pull-ups and great for the biceps.',
           cues: [

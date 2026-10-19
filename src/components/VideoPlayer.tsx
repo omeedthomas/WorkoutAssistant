@@ -5,6 +5,8 @@ import type { ExerciseVideo } from '../data/videos';
 interface Props {
   video: ExerciseVideo;
   exerciseName: string;
+  /** Start playing right away, when it's shown because the viewer just asked to watch it. */
+  autoPlay?: boolean;
 }
 
 /**
@@ -12,8 +14,8 @@ interface Props {
  * Keeps the detail panel fast, and nothing is requested from YouTube except
  * the thumbnail until the viewer chooses to play.
  */
-export function VideoPlayer({ video, exerciseName }: Props) {
-  const [playing, setPlaying] = useState(false);
+export function VideoPlayer({ video, exerciseName, autoPlay = false }: Props) {
+  const [playing, setPlaying] = useState(autoPlay);
   const watchUrl = `https://www.youtube.com/watch?v=${video.youtubeId}`;
   const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${exerciseName} tutorial`)}`;
 

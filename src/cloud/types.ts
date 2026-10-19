@@ -26,6 +26,8 @@ export interface CloudBackend {
   signOut(): Promise<void>;
   /** Renew access after it expired; call from a click (it may open a brief Google window). */
   reconnect(): Promise<void>;
+  /** When the current access runs out (ms since epoch), or null if there's none. */
+  accessExpiresAt?(): number | null;
   /** All saved documents, or null if this account has nothing saved yet. */
   load(uid: string): Promise<CloudDocs | null>;
   save(uid: string, ops: SaveOps): Promise<void>;

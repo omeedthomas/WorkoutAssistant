@@ -1,4 +1,6 @@
-import { exerciseById, treeById, type TreeId } from '../data';
+import { exerciseById, treeById, type Equipment, type TreeId } from '../data';
+import { equipmentById } from '../data/equipment';
+import { routineById } from '../data/routines';
 import type { Units } from '../lib/units';
 import type { WorkoutLength } from '../lib/workout';
 
@@ -35,6 +37,8 @@ export interface WorkoutRecord {
   finishedAt?: string;
   /** Estimated calories burned, worked out when the workout is finished. */
   kcal?: number;
+  /** Set for a daily mobility routine (its id in `data/routines.ts`) rather than a training workout. */
+  routine?: string;
 }
 
 /** A body-weight entry. `at` (ISO) decides which wins when two devices log the same day. */
@@ -46,6 +50,13 @@ export interface WeighIn {
 export interface WeightGoal {
   kg: number;
   /** When it was set (ISO). */
+  at: string;
+}
+
+/** The gear you have, so workouts only include what you can do. */
+export interface OwnedEquipment {
+  have: Equipment[];
+  /** When it was last changed (ISO), so the newest wins across devices. */
   at: string;
 }
 
@@ -73,6 +84,8 @@ export interface ProgressState {
   /** How weights are shown. They're always stored in kg. */
   units: Units;
   workoutPlan: WorkoutPlan | null;
+  /** Null until you say what you have; until then nothing is filtered out. */
+  equipment: OwnedEquipment | null;
 }
 
 export const MAX_GOALS = 5;
@@ -90,6 +103,7 @@ export const initialProgress: ProgressState = {
   weightGoal: null,
   units: 'lb',
   workoutPlan: null,
+  equipment: null,
 };
 
 /** Local calendar day, e.g. "2026-10-18". */
@@ -115,6 +129,7 @@ export type ProgressAction =
   | { type: 'setWeightGoal'; goal: WeightGoal | null }
   | { type: 'setUnits'; units: Units }
   | { type: 'setWorkoutPlan'; plan: WorkoutPlan | null }
+  | { type: 'setEquipment'; equipment: OwnedEquipment | null }
   | { type: 'reset' }
   | { type: 'replace'; state: ProgressState };
 
@@ -226,8 +241,12 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
     case 'setWorkoutPlan':
       return { ...state, workoutPlan: action.plan };
 
+    case 'setEquipment':
+      return { ...state, equipment: action.equipment };
+
     case 'reset':
-      return { ...initialProgress, onboarded: state.onboarded, units: state.units };
+      // Preferences about you and your setup survive a reset of your progress.
+      return { ...initialProgress, onboarded: state.onboarded, units: state.units, equipment: state.equipment };
 
     case 'replace':
       return action.state;
@@ -304,6 +323,7 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
         };
         if (typeof w.finishedAt === 'string') record.finishedAt = w.finishedAt;
         if (isPositive(w.kcal)) record.kcal = Math.round(w.kcal);
+        if (typeof w.routine === 'string' && routineById[w.routine]) record.routine = w.routine;
         valid.push(record);
       }
       if (valid.length) workouts[day] = valid;
@@ -341,6 +361,13 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
     weightGoal,
     units: raw.units === 'kg' ? 'kg' : 'lb',
     workoutPlan,
+    equipment:
+      isRecord(raw.equipment) && Array.isArray(raw.equipment.have) && typeof raw.equipment.at === 'string'
+        ? {
+            have: [...new Set(raw.equipment.have.filter((e): e is Equipment => typeof e === 'string' && e in equipmentById))],
+            at: raw.equipment.at,
+          }
+        : null,
   };
 }
 

@@ -9,6 +9,8 @@ import { CloudAuthExpiredError, type CloudBackend, type CloudDocs, type CloudUse
 const DB_KEY = 'ascent:mock-cloud';
 const AUTH_KEY = 'ascent:mock-auth';
 const EXPIRED_KEY = 'ascent:mock-expired';
+/** How many times access was renewed, so tests can see automatic renewals. */
+const RENEWALS_KEY = 'ascent:mock-renewals';
 
 export const MOCK_USER: CloudUser = {
   uid: 'mock-user',
@@ -44,7 +46,9 @@ export function createMockBackend(): CloudBackend {
     async reconnect() {
       await delay();
       localStorage.removeItem(EXPIRED_KEY);
+      localStorage.setItem(RENEWALS_KEY, String(Number(localStorage.getItem(RENEWALS_KEY) ?? 0) + 1));
     },
+    accessExpiresAt: () => (localStorage.getItem(EXPIRED_KEY) === '1' ? Date.now() - 1000 : Date.now() + 3_600_000),
     async signOut() {
       localStorage.removeItem(AUTH_KEY);
       emit();

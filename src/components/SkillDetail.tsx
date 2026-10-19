@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Check, Star, Trash, Trophy, X } from 'lucide-react';
+import { Check, Star, Trash, Trophy, Wrench, X } from 'lucide-react';
 import { dependentsOf, exerciseById, tierOf, treeById } from '../data';
 import { videos } from '../data/videos';
+import { accessTo, alternativesTo, describeNeeds } from '../lib/equipment';
 import { formatDate, formatTarget, formatWork, pct } from '../lib/format';
 import { bestLog, logScore, meetsTarget, missingAncestors, statusOf } from '../lib/graph';
 import { planSession } from '../lib/progression';
@@ -141,6 +142,8 @@ export function SkillDetail({ id, view, onClose }: Props) {
           )}
         </div>
 
+        <EquipmentNote id={id} view={view} />
+
         {status === 'locked' && (
           <p className="callout callout--muted">
             Locked until you master {missing.length === 1 ? 'one earlier step' : `${missing.length} earlier steps`}.
@@ -279,6 +282,55 @@ export function SkillDetail({ id, view, onClose }: Props) {
         </button>
       </footer>
     </aside>
+  );
+}
+
+/** What equipment the exercise needs, measured against yours: a stand-in, or alternatives if you can't do it. */
+function EquipmentNote({ id, view }: { id: string; view: TreeView }) {
+  const { state } = useProgress();
+  const ex = exerciseById[id];
+  if (!ex.equipment?.length) return null;
+  const have = state.equipment?.have ?? null;
+  const access = accessTo(ex, have);
+  const needs = describeNeeds(ex.equipment);
+  const Needs = () => (
+    <>
+      <Wrench size={15} aria-hidden /> Needs {needs}.
+    </>
+  );
+
+  if (access.kind === 'ready') {
+    return (
+      <p className="equipment-note is-ready">
+        <Needs />{' '}
+        {have ? (
+          <span className="equipment-note__ok">
+            <Check size={14} aria-hidden /> You have it.
+          </span>
+        ) : (
+          <a href="#/equipment">Set your equipment</a>
+        )}
+      </p>
+    );
+  }
+  if (access.kind === 'substitute') {
+    return (
+      <p className="equipment-note is-substitute">
+        <Needs /> {access.note}
+      </p>
+    );
+  }
+  const alternatives = alternativesTo(ex, have);
+  return (
+    <div className="equipment-note is-missing">
+      <p>
+        <Needs /> You don't have that{alternatives.length ? ', so train one of these instead:' : '.'}
+      </p>
+      {alternatives.length > 0 && <RelatedChips ids={alternatives.map((a) => a.id)} linkFor={(rid) => skillHref(rid, view === 'all' ? 'all' : undefined)} />}
+      <a href="#/equipment" className="link-btn">
+        Update your equipment
+      </a>
+    </div>
   );
 }
 

@@ -1,13 +1,14 @@
 import { useMemo, type CSSProperties } from 'react';
-import { ArrowRight, Flame, Target, Trophy } from 'lucide-react';
+import { ArrowRight, Flame, Target, Trophy, Wrench } from 'lucide-react';
 import { GoogleSignInButton } from '../components/Account';
+import { DailyMobility } from '../components/DailyMobility';
 import { StreakWidget } from '../components/Streak';
 import { TodayCard } from '../components/TodayCard';
 import { exerciseById, exercises, trees, type TreeDef } from '../data';
 import { treeImages } from '../data/treeImages';
 import { formatDate, formatTarget, formatWork, pct } from '../lib/format';
 import { goalProgress, nextStepsToward, statusOf, treeStats } from '../lib/graph';
-import { skillHref } from '../lib/router';
+import { skillHref, toHash } from '../lib/router';
 import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
 
@@ -34,6 +35,10 @@ export function TrainPage() {
 
       <TodayCard />
 
+      <DailyMobility />
+
+      {!state.equipment && <EquipmentPrompt />}
+
       <section className="stat-row" aria-label="Your progress">
         <Stat label="Skills mastered" value={stats.mastered} sub={`of ${exercises.length}`} />
         <Stat label="Ready to train" value={stats.ready} sub="unlocked" />
@@ -51,12 +56,49 @@ export function TrainPage() {
           </a>
         </div>
         <div className="skill-grid">
-          {ordered.map((t) => (
-            <TreeCard key={t.id} tree={t} inPlan={planned.has(t.id)} />
-          ))}
+          {ordered
+            .filter((t) => t.kind === 'skill')
+            .map((t) => (
+              <TreeCard key={t.id} tree={t} inPlan={planned.has(t.id)} />
+            ))}
+        </div>
+      </section>
+
+      <section className="skill-section" aria-labelledby="therapy-title">
+        <div className="home-section__head">
+          <h2 id="therapy-title">Physical therapy & mobility</h2>
+          <a href={toHash({ name: 'workout', focus: ['shoulder', 'lower-back', 'hips', 'mobility'] })} className="link-btn">
+            Recovery workout <ArrowRight size={14} aria-hidden />
+          </a>
+        </div>
+        <div className="skill-grid">
+          {ordered
+            .filter((t) => t.kind === 'therapy')
+            .map((t) => (
+              <TreeCard key={t.id} tree={t} inPlan={planned.has(t.id)} />
+            ))}
         </div>
       </section>
     </div>
+  );
+}
+
+/** Shown until you've said what equipment you have. */
+function EquipmentPrompt() {
+  return (
+    <a href="#/equipment" className="card equipment-prompt">
+      <span className="equipment-prompt__icon" aria-hidden>
+        <Wrench size={20} />
+      </span>
+      <span>
+        <strong>What equipment do you have?</strong>
+        <span className="muted small">
+          Pull-up bar, dip bars, bands, dumbbells, an exercise ball… Tell Ascent and your workouts will only include what
+          you can do, with stand-ins like chairs for dips.
+        </span>
+      </span>
+      <ArrowRight size={18} aria-hidden />
+    </a>
   );
 }
 

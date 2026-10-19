@@ -7,6 +7,7 @@ export const core: TreeDef = {
   tagline: 'Hollow body, leg raises, L-sits and dragon flags: the tension behind every skill.',
   color: '#b8860b',
   ultimate: 'dragon-flag',
+  kind: 'skill',
   tracks: [
     {
       id: 'hollow',
@@ -107,6 +108,7 @@ export const core: TreeDef = {
           name: 'Kneeling Ab Rollout',
           level: 3,
           target: reps(3, 10),
+          equipment: ['ab-wheel'],
           description:
             'Kneeling with an ab wheel or barbell, roll out as far as you can control and pull back in.',
           cues: [
@@ -120,6 +122,7 @@ export const core: TreeDef = {
           name: 'Standing Rollout to Wall',
           level: 5,
           target: reps(3, 6),
+          equipment: ['ab-wheel'],
           description:
             'Standing rollout where the wheel stops against a wall. Start close to the wall and move further away over time.',
           cues: [
@@ -133,6 +136,7 @@ export const core: TreeDef = {
           name: 'Standing Ab Rollout',
           level: 7,
           target: reps(3, 5),
+          equipment: ['ab-wheel'],
           description: 'A full rollout from standing to nearly flat, and back up again.',
           cues: ['Body hollow throughout', 'Control the bottom position', 'Exhale on the way back up'],
         },
@@ -161,6 +165,8 @@ export const core: TreeDef = {
           name: 'Hanging Knee Raise',
           level: 2,
           target: reps(3, 12),
+          equipment: ['pullup-bar', 'rings'],
+          alternatives: ['lying-leg-raise'],
           requires: ['dead-hang'],
           description: 'Hang from a bar and pull your knees up to your chest without swinging.',
           cues: [
@@ -174,6 +180,8 @@ export const core: TreeDef = {
           name: 'Hanging Leg Raise',
           level: 3,
           target: reps(3, 10),
+          equipment: ['pullup-bar', 'rings'],
+          alternatives: ['lying-leg-raise', 'hollow-rock'],
           description: 'Raise straight legs to hip height or higher while hanging.',
           cues: ['Legs straight, toes pointed', 'No kipping', 'Pause briefly at the top'],
         },
@@ -182,6 +190,8 @@ export const core: TreeDef = {
           name: 'Toes to Bar',
           level: 4,
           target: reps(3, 10),
+          equipment: ['pullup-bar', 'rings'],
+          alternatives: ['tuck-dragon-flag', 'hollow-rock'],
           description: 'Strict hanging leg raise all the way until your toes touch the bar.',
           cues: [
             'Push down on the bar with straight arms',
@@ -194,6 +204,8 @@ export const core: TreeDef = {
           name: 'Windshield Wipers',
           level: 6,
           target: repsEach(3, 6),
+          equipment: ['pullup-bar', 'rings'],
+          alternatives: ['dragon-flag-negative'],
           description:
             'From toes to bar, rotate your legs from side to side like a windshield wiper. Hard work for your obliques.',
           cues: [
@@ -260,6 +272,7 @@ export const core: TreeDef = {
           name: 'Tuck L-sit',
           level: 3,
           target: hold(3, 15),
+          equipment: ['parallettes'],
           requires: ['dip-support-hold'],
           description: 'Support your whole body on your hands with your knees tucked to your chest.',
           cues: [
@@ -273,6 +286,7 @@ export const core: TreeDef = {
           name: 'One-leg L-sit',
           level: 4,
           target: holdEach(3, 10),
+          equipment: ['parallettes'],
           description: 'Tuck L-sit with one leg extended straight out.',
           cues: ['Extended leg locked straight', 'Alternate legs each set', 'Keep your hips level'],
         },
@@ -281,6 +295,7 @@ export const core: TreeDef = {
           name: 'L-sit',
           level: 5,
           target: hold(3, 15),
+          equipment: ['parallettes'],
           requires: ['pike-compression-lift'],
           description:
             'Both legs straight and level with your hips, held entirely on your hands. A real test of strength and compression.',
@@ -295,6 +310,7 @@ export const core: TreeDef = {
           name: 'V-sit',
           level: 8,
           target: hold(3, 5),
+          equipment: ['parallettes'],
           description:
             'Lift your legs well above horizontal, toward your face. Takes extreme compression and shoulder strength.',
           cues: [
@@ -343,6 +359,56 @@ export const core: TreeDef = {
             'Control both the lowering and the raising',
             'Keep your chin tucked',
           ],
+        },
+      ],
+    },
+    {
+      id: 'ball-core',
+      name: 'Exercise Ball Core',
+      from: ['plank'],
+      steps: [
+        {
+          id: 'ball-plank',
+          name: 'Exercise Ball Plank',
+          level: 2,
+          target: hold(3, 30),
+          equipment: ['stability-ball'],
+          alternatives: ['plank'],
+          description: 'A forearm plank with your elbows on an exercise ball. The ball makes your core fight to stay still.',
+          cues: ['Elbows under your shoulders', 'Squeeze your glutes', "Don't let your hips sag"],
+        },
+        {
+          id: 'ball-rollout',
+          name: 'Exercise Ball Rollout',
+          level: 3,
+          target: reps(3, 10),
+          equipment: ['stability-ball'],
+          alternatives: ['kneeling-ab-rollout', 'hollow-rock'],
+          description:
+            'Kneeling with your forearms on an exercise ball, roll it forward as far as you can while keeping your back flat, then pull it back.',
+          cues: ['Ribs down, no arching', 'Roll out only as far as you can control', 'Pull back with your abs'],
+        },
+        {
+          id: 'stir-the-pot',
+          name: 'Stir the Pot',
+          level: 4,
+          target: repsEach(3, 8),
+          equipment: ['stability-ball'],
+          alternatives: ['hollow-rock', 'side-plank'],
+          description:
+            'In a forearm plank on an exercise ball, draw small circles with your elbows as if stirring a pot, without letting your body move.',
+          cues: ['Small circles first', 'Body stays rigid', 'Each direction counts as one side'],
+        },
+        {
+          id: 'ball-pike',
+          name: 'Exercise Ball Pike',
+          level: 5,
+          target: reps(3, 8),
+          equipment: ['stability-ball'],
+          alternatives: ['tuck-dragon-flag', 'pike-compression-lift'],
+          description:
+            'From a push-up position with your shins on an exercise ball, lift your hips into a pike so the ball rolls toward your hands, then roll back out.',
+          cues: ['Arms straight, shoulders over hands', 'Lift your hips high', 'Lower with control'],
         },
       ],
     },

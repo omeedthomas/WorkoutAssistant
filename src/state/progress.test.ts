@@ -91,6 +91,7 @@ describe('sanitizeProgress', () => {
       weightGoal: null,
       units: 'lb',
       workoutPlan: null,
+      equipment: null,
     });
   });
 

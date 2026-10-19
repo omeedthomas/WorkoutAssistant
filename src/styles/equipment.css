@@ -1,0 +1,151 @@
+/* ---------- Equipment page ---------- */
+
+.equipment-page .card {
+  margin-bottom: 14px;
+}
+
+.equipment-summary p strong {
+  font-size: 1.1rem;
+}
+
+.equipment-summary__household {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.equipment-group h2 {
+  font-size: 1rem;
+}
+
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.equipment-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.equipment-option:hover {
+  border-color: var(--border-strong);
+}
+
+.equipment-option[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+
+.equipment-option__check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+.equipment-option[aria-pressed='true'] .equipment-option__check {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.equipment-option__text {
+  display: grid;
+  gap: 2px;
+}
+
+/* ---------- Equipment in skill details and workouts ---------- */
+
+.equipment-note {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 0.875rem;
+}
+
+.equipment-note p {
+  margin: 0;
+}
+
+.equipment-note svg {
+  vertical-align: -2px;
+}
+
+.equipment-note.is-substitute {
+  border-left: 3px solid var(--gold);
+}
+
+.equipment-note.is-missing {
+  border-left: 3px solid var(--danger);
+}
+
+.equipment-note__ok {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.wx-card__setup {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--gold) 10%, var(--surface-2));
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+.wx-card__setup svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold);
+}
+
+/* ---------- Home prompt ---------- */
+
+.equipment-prompt {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  text-decoration: none;
+}
+
+.equipment-prompt > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.equipment-prompt__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.equipment-prompt:hover {
+  border-color: var(--accent);
+}

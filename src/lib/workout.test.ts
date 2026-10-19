@@ -5,12 +5,13 @@ import { splitById, splits, weeklyPlans } from '../data/splits';
 import { initialProgress, type ProgressState } from '../state/progress';
 import { statusOf, withAncestors } from './graph';
 import { planSession } from './progression';
-import { daysSinceTrained, generateWorkout, suggestSplit } from './workout';
+import { daysSinceTrained, generateWorkout, mainCount, minutesByLength, suggestSplit } from './workout';
 
 const now = new Date('2026-10-18T12:00:00');
 const at = '2026-01-01T00:00:00.000Z';
 const masteredOf = (...ids: string[]) => Object.fromEntries(withAncestors(ids).map((id) => [id, at]));
 const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
+const pick = ({ sets, value }: { sets: number; value: number }) => ({ sets, value });
 
 const intermediate: ProgressState = {
   ...initialProgress,
@@ -47,13 +48,66 @@ describe('generateWorkout', () => {
     expect(w.cooldown.some((d) => d.focus !== 'all' && d.focus.includes('push'))).toBe(true);
   });
 
-  it('only prescribes exercises at your current level in the chosen trees', () => {
+  it('prescribes your current steps in the chosen trees, plus a mastered one to keep sharp', () => {
     const w = generateWorkout(intermediate, ['push', 'pull'], 'long', now);
     expect(w.main.length).toBeGreaterThan(2);
     for (const m of w.main) {
       expect(['push', 'pull']).toContain(m.exercise.tree);
-      expect(statusOf(m.exercise.id, intermediate.mastered)).toBe('available');
+      if (m.why === 'Mastered: keep it sharp') expect(statusOf(m.exercise.id, intermediate.mastered)).toBe('mastered');
+      else expect(statusOf(m.exercise.id, intermediate.mastered)).toBe('available');
     }
+  });
+
+  it('gives every chosen area at least two exercises, basic movements first', () => {
+    const areas: TreeId[] = ['push', 'pull', 'core', 'legs', 'handstand'];
+    for (const length of ['short', 'standard', 'long'] as const) {
+      const w = generateWorkout(intermediate, areas, length, now);
+      expect(w.main).toHaveLength(mainCount(length, areas.length));
+      for (const t of areas) expect(w.main.filter((m) => m.focus === t).length, `${length} ${t}`).toBeGreaterThanOrEqual(2);
+    }
+    // Dips as well as push-ups, glute bridges as well as squats.
+    const tracksOf = (t: TreeId) =>
+      generateWorkout(intermediate, areas, 'short', now).main.filter((m) => m.focus === t).map((m) => m.exercise.track);
+    expect(tracksOf('push')).toEqual(expect.arrayContaining(['push/dips', 'push/pushups']));
+    expect(tracksOf('legs')).toEqual(expect.arrayContaining(['legs/squat', 'legs/hinge']));
+    const beginner = generateWorkout(initialProgress, areas, 'standard', now).main;
+    expect(beginner.map((m) => m.exercise.id)).toEqual(
+      expect.arrayContaining(['wall-pushup', 'bench-dip', 'assisted-squat', 'glute-bridge', 'dead-bug', 'plank']),
+    );
+    // Core and Push take Handstand's lead-ins, so Handstand gets its own first steps, a little ahead.
+    expect(beginner.filter((m) => m.focus === 'handstand').map((m) => m.exercise.id)).toEqual(['elevated-pike-hold', 'wall-walk']);
+  });
+
+  it('gives every area at least two exercises for any tree, alone or with the base trees, at any level', () => {
+    const noGear: ProgressState = { ...initialProgress, equipment: { have: [], at } };
+    const base: TreeId[] = ['push', 'pull', 'core', 'legs'];
+    const selections = [...trees.map((t) => [t.id]), ...trees.map((t) => [...new Set([...base, t.id])]), trees.map((t) => t.id)];
+    for (const state of [initialProgress, noGear, intermediate]) {
+      for (const focus of selections) {
+        for (const length of ['short', 'standard', 'long'] as const) {
+          const w = generateWorkout(state, focus, length, now);
+          for (const t of focus) expect(w.main.filter((m) => m.focus === t).length, `${focus.join('+')} ${length}: ${t}`).toBeGreaterThanOrEqual(2);
+          expect(new Set(w.main.map((m) => m.exercise.id)).size).toBe(w.main.length);
+        }
+      }
+    }
+  });
+
+  it('scales the number of exercises with the areas and the length', () => {
+    expect([1, 2, 5].map((n) => mainCount('short', n))).toEqual([3, 4, 10]);
+    expect([1, 2, 5].map((n) => mainCount('standard', n))).toEqual([5, 6, 12]);
+    expect([1, 2, 5].map((n) => mainCount('long', n))).toEqual([7, 8, 16]);
+    const minutes = minutesByLength(intermediate, ['push', 'pull'], now);
+    expect(minutes.short).toBeLessThan(minutes.standard);
+    expect(minutes.standard).toBeLessThan(minutes.long);
+  });
+
+  it("leaves another chosen area's steps to that area when building toward a locked tree", () => {
+    // Plank leads into Handstand, but Core trains it, so Core still gets two exercises of its own.
+    const w = generateWorkout(initialProgress, ['core', 'handstand'], 'standard', now);
+    const plank = w.main.filter((m) => m.exercise.id === 'plank');
+    expect(plank).toHaveLength(1);
+    expect(plank[0].focus).toBe('core');
   });
 
   it('uses the progression plan for the sets and reps', () => {
@@ -70,10 +124,10 @@ describe('generateWorkout', () => {
   it('shares the exercises across several trees and puts skill work first', () => {
     const w = generateWorkout(intermediate, ['push', 'pull', 'handstand'], 'standard', now);
     const count = (t: TreeId) => w.main.filter((m) => m.focus === t).length;
-    expect(w.main).toHaveLength(5);
-    expect(count('push')).toBe(2);
-    expect(count('pull')).toBe(2);
-    expect(count('handstand')).toBe(1);
+    expect(w.main).toHaveLength(9);
+    expect(count('push')).toBe(3);
+    expect(count('pull')).toBe(3);
+    expect(count('handstand')).toBe(3);
     expect(w.main[0].block).toBe('skill');
     const blocks = w.main.map((m) => m.block);
     expect(blocks).toEqual([...blocks].sort((a, b) => ['skill', 'strength', 'core'].indexOf(a) - ['skill', 'strength', 'core'].indexOf(b)));
@@ -83,10 +137,12 @@ describe('generateWorkout', () => {
     const w = generateWorkout(initialProgress, ['planche'], 'standard', now);
     expect(w.notes.some((n) => /Planche isn't unlocked yet/.test(n))).toBe(true);
     expect(w.main.length).toBeGreaterThan(0);
-    for (const m of w.main) {
-      expect(m.why).toBe('Builds toward Planche');
-      expect(statusOf(m.exercise.id, initialProgress.mastered)).toBe('available');
-    }
+    // The unlocked steps that lead into it first, then (to fill the session) its first steps a little ahead.
+    const leadIns = w.main.filter((m) => m.why === 'Builds toward Planche');
+    expect(leadIns.length).toBeGreaterThan(0);
+    for (const m of leadIns) expect(statusOf(m.exercise.id, initialProgress.mastered)).toBe('available');
+    for (const m of w.main.filter((m) => !leadIns.includes(m))) expect(m.why).toMatch(/^A step ahead/);
+    expect(w.main.map((m) => m.exercise.id)).toContain('frog-stand');
   });
 
   it('prioritises the path to your goals', () => {
@@ -109,6 +165,44 @@ describe('generateWorkout', () => {
     const a = generateWorkout(intermediate, ['pull', 'push'], 'standard', now);
     const b = generateWorkout(intermediate, ['push', 'pull'], 'standard', now);
     expect(a.main.map((m) => m.exercise.id)).toEqual(b.main.map((m) => m.exercise.id));
+  });
+
+  it('brings a mastered exercise back about once a week, without crowding out progress', () => {
+    const maintained = (s: ProgressState) =>
+      generateWorkout(s, ['push'], 'short', now)
+        .main.filter((m) => m.why === 'Mastered: keep it sharp')
+        .map((m) => m.exercise.id);
+    const log = (id: string, days: number) => ({ [id]: [{ id, date: daysAgo(days), sets: 3, value: 10 }] });
+
+    // Mastered long ago: the hardest mastered step of a progression comes back, right after the first exercise.
+    const w = generateWorkout(intermediate, ['push'], 'short', now);
+    expect(w.main[1].why).toBe('Mastered: keep it sharp');
+    const first = w.main[1].exercise.id;
+    expect(['pushup', 'dip']).toContain(first);
+    expect(w.main[1].plan).toMatchObject({ kind: 'maintain', ...pick(w.main[1].exercise.target) });
+    const other = first === 'pushup' ? 'dip' : 'pushup';
+
+    // Done 5 days ago: not due yet, so the other one comes back instead.
+    expect(maintained({ ...intermediate, logs: log(first, 5) })).toEqual([other]);
+    // Maintained yesterday: Push gets a few days of pure progress first.
+    expect(maintained({ ...intermediate, logs: log(first, 1) })).toEqual([]);
+  });
+
+  it('asks for more than the target once you keep hitting it on a mastered exercise', () => {
+    const logs = {
+      pushup: [{ id: 'p', date: daysAgo(10), sets: 3, value: 12, planned: { sets: 3, value: 12 } }], // target 3 × 12
+      dip: [{ id: 'd', date: daysAgo(3), sets: 3, value: 10 }],
+    };
+    const pushup = generateWorkout({ ...intermediate, logs }, ['push'], 'short', now).main.find((m) => m.exercise.id === 'pushup');
+    expect(pushup?.plan).toMatchObject({ kind: 'progress', sets: 3, value: 13 });
+    expect(pushup?.plan.headline).toBe('Beat your best: 3 × 13 reps');
+  });
+
+  it('never lets maintenance push the path to your goals aside', () => {
+    const state: ProgressState = { ...intermediate, goals: ['bar-muscle-up'] };
+    const w = generateWorkout(state, ['pull'], 'short', now);
+    expect(w.main[0].exercise.id).toBe('chest-to-bar-pullup');
+    expect(w.main[1].why).toBe('Mastered: keep it sharp');
   });
 
   it('leaves weighted exercises out until you have logged one, then plans them in your units', () => {

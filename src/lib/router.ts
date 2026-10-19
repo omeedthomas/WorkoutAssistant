@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import { exerciseById, treeById, type TreeId } from '../data';
+import { routineById } from '../data/routines';
 
 export type TreeView = TreeId | 'all';
 
@@ -9,6 +10,10 @@ export type Route =
   | { name: 'trees'; tree: TreeView; skill?: string }
   | { name: 'history'; day?: string }
   | { name: 'start' }
+  | { name: 'equipment' }
+  | { name: 'mobility'; routine?: string }
+  | { name: 'privacy' }
+  | { name: 'terms' }
   | { name: 'settings' };
 
 export function parseHash(hash: string): Route {
@@ -39,6 +44,14 @@ export function parseHash(hash: string): Route {
     }
     case 'start':
       return { name: 'start' };
+    case 'equipment':
+      return { name: 'equipment' };
+    case 'mobility':
+      return parts[1] && routineById[parts[1]] ? { name: 'mobility', routine: parts[1] } : { name: 'mobility' };
+    case 'privacy':
+      return { name: 'privacy' };
+    case 'terms':
+      return { name: 'terms' };
     case 'settings':
       return { name: 'settings' };
     default:
@@ -56,6 +69,14 @@ export function toHash(route: Route): string {
       return route.day ? `#/history/${route.day}` : '#/history';
     case 'start':
       return '#/start';
+    case 'equipment':
+      return '#/equipment';
+    case 'mobility':
+      return route.routine ? `#/mobility/${route.routine}` : '#/mobility';
+    case 'privacy':
+      return '#/privacy';
+    case 'terms':
+      return '#/terms';
     case 'settings':
       return '#/settings';
     case 'train':

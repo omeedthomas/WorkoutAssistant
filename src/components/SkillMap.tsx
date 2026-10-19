@@ -69,6 +69,9 @@ function SkillMapInner({ view, selected }: Props) {
   const layout = useMemo(() => layoutTree(view), [view]);
   const pathSet = useMemo(() => goalPathSet(state.goals), [state.goals]);
 
+  // Every progress change rebuilds the nodes. Each one carries `measured` (its size is fixed by the layout):
+  // without it React Flow forgets where the node's handles are and hides every edge until it re-measures,
+  // which made the whole map flicker after marking a skill mastered.
   const nodes = useMemo<MapNode[]>(
     () => [
       ...layout.clusters.map(
@@ -78,6 +81,7 @@ function SkillMapInner({ view, selected }: Props) {
           position: { x: c.x, y: c.y },
           width: c.width,
           height: c.height,
+          measured: { width: c.width, height: c.height },
           zIndex: -1,
           draggable: false,
           selectable: false,
@@ -95,6 +99,7 @@ function SkillMapInner({ view, selected }: Props) {
           position: { x: n.x, y: n.y },
           width: n.width,
           height: n.height,
+          measured: { width: n.width, height: n.height },
           draggable: false,
           connectable: false,
           ariaLabel: `${ex.name}, level ${ex.level}, ${statusLabel[status]}`,

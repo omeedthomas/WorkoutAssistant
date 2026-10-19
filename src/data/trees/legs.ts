@@ -7,6 +7,7 @@ export const legs: TreeDef = {
   tagline: 'Squats to pistols and shrimps, glute bridges to Nordic curls.',
   color: '#0ca678',
   ultimate: 'pistol-squat',
+  kind: 'skill',
   tracks: [
     {
       id: 'squat',
@@ -214,6 +215,34 @@ export const legs: TreeDef = {
             'Weights hang straight down at your sides',
             'Drop your back knee toward the floor, then drive up through the front heel',
           ],
+        },
+      ],
+    },
+    {
+      id: 'bosu-balance',
+      name: 'Balance on a BOSU',
+      from: ['squat'],
+      steps: [
+        {
+          id: 'bosu-squat',
+          name: 'BOSU Squat',
+          level: 2,
+          target: reps(3, 12),
+          equipment: ['bosu'],
+          alternatives: ['split-squat'],
+          description:
+            'A bodyweight squat standing on the dome of a BOSU ball. Trains balance and the small muscles that protect your knees and ankles.',
+          cues: ['Feet hip-width apart on the dome', 'Knees track over your toes', 'Hold something nearby at first'],
+        },
+        {
+          id: 'bosu-split-squat',
+          name: 'BOSU Split Squat',
+          level: 3,
+          target: repsEach(3, 10),
+          equipment: ['bosu'],
+          alternatives: ['bulgarian-split-squat'],
+          description: 'A split squat with your front foot on the BOSU dome. Harder to balance, and great for knee and ankle stability.',
+          cues: ['Front foot in the centre of the dome', 'Drop the back knee straight down', 'Stay tall'],
         },
       ],
     },

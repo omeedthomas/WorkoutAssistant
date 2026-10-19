@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
-import { Bell, BellOff, Download, RotateCcw, Target, Upload } from 'lucide-react';
+import { Bell, BellOff, Download, RotateCcw, Target, Upload, Volume2, VolumeX, Wrench } from 'lucide-react';
 import { AccountSection } from '../components/Account';
 import { remindersEnabled, remindersSupported, setRemindersEnabled, showNotification } from '../components/StreakReminder';
 import { useToast } from '../components/Toast';
+import { setGuidePrefs, speak, speechSupported, useGuidePrefs } from '../lib/announcer';
 import { REMINDER_HOURS } from '../lib/history';
 import { exercises, tracks, trees } from '../data';
+import { equipmentById } from '../data/equipment';
 import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
 
@@ -63,6 +65,22 @@ export function SettingsPage() {
         </div>
       </section>
 
+      <section className="card settings-section">
+        <h2>Equipment</h2>
+        <p className="muted small">
+          {state.equipment
+            ? state.equipment.have.length
+              ? `You have: ${state.equipment.have.map((e) => equipmentById[e].name).join(', ')}. Workouts only include what you can do.`
+              : "You've said you have no equipment, so workouts stick to the floor, a wall and household stand-ins."
+            : 'Not set yet, so nothing is filtered out. Tell Ascent what you have and workouts will only include what you can do.'}
+        </p>
+        <a href="#/equipment" className="btn">
+          <Wrench size={16} aria-hidden /> {state.equipment ? 'Change equipment' : 'Set up equipment'}
+        </a>
+      </section>
+
+      <GuidedWorkoutSettings />
+
       <StreakReminderSettings />
 
       <section className="card settings-section">
@@ -113,7 +131,47 @@ export function SettingsPage() {
         {trees.length} skill trees · {tracks.length} progressions · {exercises.length} exercises. Train within your
         limits, warm up first, and stop if something hurts.
       </p>
+      <p className="muted small about">
+        <a href="#/privacy">Privacy Policy</a> · <a href="#/terms">Terms of Service</a>
+      </p>
     </div>
+  );
+}
+
+/** The announcer and demo videos in guided workouts (per device). */
+function GuidedWorkoutSettings() {
+  const prefs = useGuidePrefs();
+  const canSpeak = speechSupported();
+  return (
+    <section className="card settings-section">
+      <h2>Guided workouts</h2>
+      <p className="muted small">
+        When you follow along, an announcer tells you what's next ("Time to do Push-up for 12 reps"), counts you in
+        with 3, 2, 1 before every timer, and counts down the end of each set and rest. You can also mute it with the
+        speaker button during a workout.
+      </p>
+      {canSpeak ? (
+        <div className="button-row">
+          <div className="segmented" role="group" aria-label="Announcer">
+            <button aria-pressed={prefs.voice} onClick={() => setGuidePrefs({ voice: true })}>
+              <Volume2 size={16} aria-hidden /> Announcer on
+            </button>
+            <button aria-pressed={!prefs.voice} onClick={() => setGuidePrefs({ voice: false })}>
+              <VolumeX size={16} aria-hidden /> Off
+            </button>
+          </div>
+          <button className="btn" disabled={!prefs.voice} onClick={() => speak('Time to do Push-up for 12 reps. 3, 2, 1, go!')}>
+            Test the announcer
+          </button>
+        </div>
+      ) : (
+        <p className="callout callout--muted small">This browser can't read announcements out loud. Timers and countdowns still show on screen.</p>
+      )}
+      <label className="checkbox">
+        <input type="checkbox" checked={prefs.video} onChange={(e) => setGuidePrefs({ video: e.target.checked })} />
+        <span>Play a looping, muted demo video of each exercise. Turn this off to save data; you'll see a still picture instead.</span>
+      </label>
+    </section>
   );
 }
 

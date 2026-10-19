@@ -6,7 +6,27 @@ export type TreeId =
   | 'handstand'
   | 'planche'
   | 'levers'
-  | 'muscle-up';
+  | 'muscle-up'
+  | 'breakdance'
+  | 'shoulder'
+  | 'lower-back'
+  | 'hips'
+  | 'mobility';
+
+/** Gear an exercise can need. Household things (floor, wall, sturdy chairs, a table, a towel, a backpack) are assumed. */
+export type Equipment =
+  | 'pullup-bar'
+  | 'dip-bars'
+  | 'parallettes'
+  | 'rings'
+  | 'pole'
+  | 'dumbbells'
+  | 'kettlebell'
+  | 'bands'
+  | 'stability-ball'
+  | 'bosu'
+  | 'foam-roller'
+  | 'ab-wheel';
 
 export type Unit = 'reps' | 'seconds';
 
@@ -31,6 +51,10 @@ export interface StepDef {
   cues: string[];
   /** Extra prerequisites on top of the previous step in the same track. */
   requires?: string[];
+  /** Gear it needs, any one of which will do. Leave out for floor, wall and household items only. */
+  equipment?: Equipment[];
+  /** Exercises to suggest instead when you don't have the equipment (on top of the automatic ones). */
+  alternatives?: string[];
 }
 
 /**
@@ -52,6 +76,8 @@ export interface TreeDef {
   color: string;
   /** The signature skill at the top of the tree. Home shows progress toward it. */
   ultimate: string;
+  /** Calisthenics skills, or physical therapy and mobility work (shown in their own section). */
+  kind: 'skill' | 'therapy';
   tracks: TrackDef[];
 }
 

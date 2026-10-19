@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
   /** "true" in development to use fake accounts instead of Google. */
   readonly VITE_CLOUD_MOCK?: string;
+  /** Contact address shown on the Privacy Policy and Terms of Service. */
+  readonly VITE_CONTACT_EMAIL?: string;
 }
 
 interface ImportMeta {

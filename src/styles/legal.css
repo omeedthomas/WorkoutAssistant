@@ -1,0 +1,65 @@
+/* ---------- Privacy Policy and Terms of Service ---------- */
+
+.legal {
+  line-height: 1.65;
+}
+
+.legal__back {
+  margin-bottom: 12px;
+}
+
+.legal section {
+  margin-top: 24px;
+}
+
+.legal h2 {
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+
+.legal h3 {
+  margin: 12px 0 4px;
+  font-size: 0.95rem;
+}
+
+.legal p,
+.legal li {
+  color: var(--text-2);
+}
+
+.legal p + p,
+.legal ul {
+  margin-top: 8px;
+}
+
+.legal ul {
+  padding-left: 20px;
+}
+
+.legal li + li {
+  margin-top: 4px;
+}
+
+.legal strong {
+  color: var(--text);
+}
+
+.legal a {
+  color: var(--accent);
+}
+
+.legal__summary {
+  padding: 16px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.legal__footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-3);
+}

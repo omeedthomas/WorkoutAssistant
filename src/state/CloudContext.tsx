@@ -22,6 +22,23 @@ export interface CloudApi {
   /** Renew Drive access after it expires (call from a click). */
   reconnect: () => Promise<void>;
   syncNow: () => void;
+  /** Renew Drive access by itself on the next tap when it's about to run out (a per-device setting). */
+  autoReconnect: boolean;
+  setAutoReconnect: (on: boolean) => void;
+}
+
+const AUTO_RECONNECT_KEY = 'ascent:auto-reconnect';
+/** Renew this long before access runs out, so saving never has to wait. */
+const RENEW_AHEAD_MS = 5 * 60_000;
+/** After a failed automatic renewal (e.g. a blocked pop-up), wait this long before trying again by itself. */
+const RETRY_AFTER_MS = 10 * 60_000;
+
+function loadAutoReconnect(): boolean {
+  try {
+    return localStorage.getItem(AUTO_RECONNECT_KEY) !== '0';
+  } catch {
+    return true;
+  }
 }
 
 const CloudContext = createContext<CloudApi | null>(null);
@@ -49,6 +66,13 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   progressRef.current = progress;
   const announceRef = useRef(false); // toast the reconcile result only after a sign-in click
   const warnedExpiryRef = useRef(false);
+  const [autoReconnect, setAutoReconnectState] = useState(loadAutoReconnect);
+  /** A renewal in progress (automatic or from the Reconnect button), so taps don't start a second one. */
+  const renewingRef = useRef<Promise<void> | null>(null);
+  /** The last automatic renewal failed, so the Reconnect prompt is shown again. */
+  const autoFailedRef = useRef(false);
+  const autoRef = useRef(autoReconnect);
+  autoRef.current = autoReconnect;
 
   // Load the backend (lazily pulls in Google sign-in) and follow the auth state.
   useEffect(() => {
@@ -96,7 +120,9 @@ export function CloudProvider({ children }: { children: ReactNode }) {
             warnedExpiryRef.current = false;
             setFolderUrl(backend.folderUrl?.() ?? null);
           }
-          if (s === 'reconnect' && !warnedExpiryRef.current && !announceRef.current) {
+          // With automatic renewal on, the next tap reconnects, so only prompt if that didn't work.
+          const autoRenews = autoRef.current && !autoFailedRef.current && !!backend.accessExpiresAt;
+          if (s === 'reconnect' && !warnedExpiryRef.current && !announceRef.current && !autoRenews && !renewingRef.current) {
             warnedExpiryRef.current = true;
             toast('Reconnect Google Drive', "Your progress is safe on this device. Tap Reconnect and it'll be saved to Drive.");
           }
@@ -163,16 +189,67 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     }
   }, [backend, report]);
 
+  /** Gets fresh Drive access and saves whatever was waiting. Shares a renewal that's already under way. */
+  const renew = useCallback((): Promise<void> => {
+    if (!backend) return Promise.resolve();
+    renewingRef.current ??= backend
+      .reconnect()
+      .then(() => {
+        autoFailedRef.current = false;
+        warnedExpiryRef.current = false;
+        setError(null);
+        return engineRef.current?.resume();
+      })
+      .finally(() => {
+        renewingRef.current = null;
+      });
+    return renewingRef.current;
+  }, [backend]);
+
   const reconnect = useCallback(async () => {
-    if (!backend) return;
     try {
-      await backend.reconnect();
-      setError(null);
-      await engineRef.current?.resume();
+      await renew();
     } catch (e) {
       report(e, "Couldn't reconnect");
     }
-  }, [backend, report]);
+  }, [renew, report]);
+
+  // Google gives a browser app hour-long access tokens and no refresh token, and only lets a page ask for a new
+  // one in response to a tap. So rather than waiting for the Reconnect button, renew on the next tap once access
+  // is about to run out (or has). Google remembers the consent, so at most a window flashes open and closes.
+  useEffect(() => {
+    const expiresAt = backend?.accessExpiresAt?.bind(backend);
+    if (!expiresAt || !uid || !autoReconnect) return;
+    let lastTry = 0;
+    // `click` rather than `pointerdown`: on touch screens only the end of a tap counts as a user gesture, and
+    // Google's window would be blocked without one. Keyboard activation of buttons and links fires `click` too.
+    const onTap = () => {
+      const left = (expiresAt() ?? 0) - Date.now();
+      if (left > RENEW_AHEAD_MS || renewingRef.current || Date.now() - lastTry < RETRY_AFTER_MS) return;
+      lastTry = Date.now();
+      renew().catch((err) => {
+        autoFailedRef.current = true;
+        setError(describeCloudError(err));
+        // Only bother the user if saving is actually blocked; otherwise the next attempt can wait.
+        if (left <= 0 && !warnedExpiryRef.current) {
+          warnedExpiryRef.current = true;
+          toast('Reconnect Google Drive', "Couldn't renew access by itself. Your progress is safe on this device; tap Reconnect to save it to Drive.");
+        }
+      });
+    };
+    window.addEventListener('click', onTap, true);
+    return () => window.removeEventListener('click', onTap, true);
+  }, [backend, uid, autoReconnect, renew, toast]);
+
+  const setAutoReconnect = useCallback((on: boolean) => {
+    setAutoReconnectState(on);
+    autoFailedRef.current = false;
+    try {
+      localStorage.setItem(AUTO_RECONNECT_KEY, on ? '1' : '0');
+    } catch {
+      // not persisted; applies until the page reloads
+    }
+  }, []);
 
   const signOut = useCallback(async () => {
     if (!backend) return;
@@ -213,8 +290,10 @@ export function CloudProvider({ children }: { children: ReactNode }) {
       signOut,
       reconnect,
       syncNow,
+      autoReconnect,
+      setAutoReconnect,
     }),
-    [ready, user, status, lastSyncedAt, error, folderUrl, signIn, signOut, reconnect, syncNow],
+    [ready, user, status, lastSyncedAt, error, folderUrl, signIn, signOut, reconnect, syncNow, autoReconnect, setAutoReconnect],
   );
 
   return <CloudContext.Provider value={api}>{children}</CloudContext.Provider>;

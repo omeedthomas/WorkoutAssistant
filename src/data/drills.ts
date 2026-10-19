@@ -1,18 +1,37 @@
 import type { TreeId } from './types';
+import { drillVideos, videos, type ExerciseVideo } from './videos';
 
-/** Warm-up and cooldown drills. Not part of the skill trees and not tracked for mastery. */
+/** A time-based drill, run by the workout timer: `sets` rounds of `seconds`, once per side when `sides` is set. */
+export interface DrillTimer {
+  sets: number;
+  seconds: number;
+  /** What each side is called, e.g. ['Left side', 'Right side']. */
+  sides?: [string, string];
+}
+
+/**
+ * Warm-up and cooldown drills, and the moves of the daily mobility routines (`data/routines.ts`). Not part of
+ * the skill trees and not tracked for mastery. Routines can use drills of any phase; `mobility` ones only
+ * appear in routines, never in a workout's warm-up or cooldown.
+ */
 export interface Drill {
   id: string;
   name: string;
-  phase: 'warmup' | 'cooldown';
+  phase: 'warmup' | 'cooldown' | 'mobility';
   /** What to do, e.g. "10 reps" or "30 s each side". */
   dose: string;
   /** Rough time it takes, for the workout estimate. */
   seconds: number;
+  /** Set for timed drills (holds, stretches, cardio); drills without one are done for reps. */
+  timer?: DrillTimer;
+  /** The catalog exercise this drill is a version of. Its how-to video is reused. */
+  exercise?: string;
   cue: string;
   /** Trees this drill prepares for (or recovers from). `all` = useful for any session. */
   focus: TreeId[] | 'all';
 }
+
+const SIDES: [string, string] = ['Left side', 'Right side'];
 
 export const drills: Drill[] = [
   // ---------- Warm-up ----------
@@ -22,6 +41,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '2 min',
     seconds: 120,
+    timer: { sets: 1, seconds: 120 },
     cue: 'Get your heart rate up and your body warm before anything else.',
     focus: 'all',
   },
@@ -31,8 +51,9 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '60 s',
     seconds: 60,
+    timer: { sets: 1, seconds: 60 },
     cue: 'Circle your wrists both ways, then rock gently forward and back on your hands with fingers forward, then backward.',
-    focus: ['push', 'handstand', 'planche', 'core'],
+    focus: ['push', 'handstand', 'planche', 'core', 'breakdance'],
   },
   {
     id: 'arm-circles',
@@ -41,7 +62,7 @@ export const drills: Drill[] = [
     dose: '10 each direction',
     seconds: 45,
     cue: 'Start small and grow to big, relaxed circles. Go forward, then backward.',
-    focus: ['push', 'pull', 'handstand', 'planche', 'levers', 'muscle-up'],
+    focus: ['push', 'pull', 'handstand', 'planche', 'levers', 'muscle-up', 'breakdance', 'shoulder'],
   },
   {
     id: 'scap-pushup',
@@ -49,8 +70,9 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '10 reps',
     seconds: 45,
+    exercise: 'pt-scap-pushup',
     cue: 'In a high plank with straight arms, let your chest sink between your shoulder blades, then push the floor away.',
-    focus: ['push', 'planche', 'handstand'],
+    focus: ['push', 'planche', 'handstand', 'shoulder'],
   },
   {
     id: 'active-hang',
@@ -58,6 +80,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '2 × 15 s',
     seconds: 60,
+    timer: { sets: 2, seconds: 15 },
     cue: 'Hang from the bar and pull your shoulders down away from your ears without bending your arms.',
     focus: ['pull', 'levers', 'muscle-up'],
   },
@@ -67,6 +90,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '8 reps',
     seconds: 40,
+    exercise: 'scapular-pull',
     cue: 'From a dead hang, pull your shoulder blades down and back, pause, and lower slowly.',
     focus: ['pull', 'levers', 'muscle-up'],
   },
@@ -77,7 +101,7 @@ export const drills: Drill[] = [
     dose: '10 reps',
     seconds: 45,
     cue: 'Hold a band or towel wide, keep your arms straight, and take it slowly over your head and behind you.',
-    focus: ['pull', 'handstand', 'levers', 'muscle-up'],
+    focus: ['pull', 'handstand', 'levers', 'muscle-up', 'shoulder', 'mobility'],
   },
   {
     id: 'wall-slides',
@@ -85,8 +109,9 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '10 reps',
     seconds: 45,
+    exercise: 'wall-angel',
     cue: 'Back against a wall, slide your arms up overhead while keeping your elbows and wrists touching the wall.',
-    focus: ['handstand', 'push'],
+    focus: ['handstand', 'push', 'shoulder'],
   },
   {
     id: 'shoulder-taps',
@@ -112,6 +137,8 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '3 × 10 s',
     seconds: 60,
+    timer: { sets: 3, seconds: 10 },
+    exercise: 'planche-lean',
     cue: 'At the top of a push-up, lean a little past your hands. Use about half of your full lean.',
     focus: ['planche'],
   },
@@ -121,6 +148,8 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '2 × 15 s',
     seconds: 50,
+    timer: { sets: 2, seconds: 15 },
+    exercise: 'hollow-body-hold',
     cue: 'Press your lower back into the floor and squeeze your legs together. Tuck your knees if you need to.',
     focus: ['core', 'levers', 'handstand'],
   },
@@ -130,8 +159,9 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '8 slow reps',
     seconds: 40,
+    exercise: 'cat-cow',
     cue: 'On all fours, round your back fully, then arch it. Move one vertebra at a time.',
-    focus: ['core', 'legs'],
+    focus: ['core', 'legs', 'lower-back', 'hips', 'mobility'],
   },
   {
     id: 'pike-pulses',
@@ -139,6 +169,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '10 reps',
     seconds: 40,
+    exercise: 'seated-pike-stretch',
     cue: 'Sit with straight legs and reach toward your toes in gentle pulses. Wakes up your compression.',
     focus: ['core', 'handstand'],
   },
@@ -149,7 +180,7 @@ export const drills: Drill[] = [
     dose: '10 each way, each leg',
     seconds: 80,
     cue: 'Hold a wall and swing one leg forward and back, then side to side. Keep it relaxed.',
-    focus: ['legs'],
+    focus: ['legs', 'hips', 'mobility', 'breakdance'],
   },
   {
     id: 'hip-circles',
@@ -158,7 +189,7 @@ export const drills: Drill[] = [
     dose: '8 each direction',
     seconds: 40,
     cue: 'Hands on hips and make big, slow circles.',
-    focus: ['legs', 'core'],
+    focus: ['legs', 'core', 'hips', 'lower-back', 'breakdance'],
   },
   {
     id: 'ankle-rocks',
@@ -166,8 +197,9 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '10 each side',
     seconds: 45,
+    exercise: 'knee-to-wall',
     cue: 'In a half-kneeling position, push your front knee forward past your toes while your heel stays down.',
-    focus: ['legs'],
+    focus: ['legs', 'mobility'],
   },
   {
     id: 'warmup-squats',
@@ -175,6 +207,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '10 reps',
     seconds: 50,
+    exercise: 'squat',
     cue: 'Take three seconds down and pause at the bottom. Easy effort.',
     focus: ['legs'],
   },
@@ -184,6 +217,7 @@ export const drills: Drill[] = [
     phase: 'warmup',
     dose: '2 × 15 s',
     seconds: 50,
+    timer: { sets: 2, seconds: 15 },
     cue: 'Jump to the top of the bar with locked arms and push your shoulders down. This is the top of the muscle-up.',
     focus: ['muscle-up'],
   },
@@ -195,8 +229,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s each side',
     seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: SIDES },
+    exercise: 'doorway-pec-stretch',
     cue: 'Forearm on the doorframe at shoulder height. Step through gently until you feel it across your chest.',
-    focus: ['push', 'planche', 'muscle-up'],
+    focus: ['push', 'planche', 'muscle-up', 'shoulder', 'mobility'],
   },
   {
     id: 'lat-stretch',
@@ -204,8 +240,9 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s',
     seconds: 40,
+    timer: { sets: 1, seconds: 30 },
     cue: 'Kneel, put your hands on a bench or chair, and sink your chest down between your arms.',
-    focus: ['pull', 'levers', 'muscle-up', 'handstand'],
+    focus: ['pull', 'levers', 'muscle-up', 'handstand', 'shoulder'],
   },
   {
     id: 'wrist-stretch',
@@ -213,8 +250,9 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s each way',
     seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: ['Fingers pulled back', 'Back of the wrist'] },
     cue: 'Arm straight, gently pull your fingers back toward you, then flip your hand over and stretch the back of the wrist.',
-    focus: ['push', 'handstand', 'planche'],
+    focus: ['push', 'handstand', 'planche', 'breakdance'],
   },
   {
     id: 'triceps-stretch',
@@ -222,6 +260,7 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s each side',
     seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: SIDES },
     cue: 'Reach one hand down your back and use the other hand to ease the elbow back.',
     focus: ['push', 'handstand', 'muscle-up'],
   },
@@ -231,8 +270,9 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '5 slow reps each side',
     seconds: 60,
+    exercise: 'thread-the-needle',
     cue: 'On all fours, slide one arm under your body and rotate your upper back toward the floor.',
-    focus: ['pull', 'levers', 'push'],
+    focus: ['pull', 'levers', 'push', 'shoulder', 'mobility', 'breakdance'],
   },
   {
     id: 'sphinx',
@@ -240,8 +280,9 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '45 s',
     seconds: 50,
+    timer: { sets: 1, seconds: 45 },
     cue: 'Lie face down, prop yourself up on your forearms and let your stomach relax.',
-    focus: ['core', 'levers'],
+    focus: ['core', 'levers', 'lower-back'],
   },
   {
     id: 'pike-fold',
@@ -249,8 +290,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '45 s',
     seconds: 50,
+    timer: { sets: 1, seconds: 45 },
+    exercise: 'seated-pike-stretch',
     cue: 'Sit with straight legs and fold forward from your hips. Breathe out to sink a little deeper.',
-    focus: ['core', 'legs', 'handstand'],
+    focus: ['core', 'legs', 'handstand', 'mobility', 'lower-back', 'breakdance'],
   },
   {
     id: 'hip-flexor',
@@ -258,8 +301,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s each side',
     seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: SIDES },
+    exercise: 'kneeling-hip-flexor-stretch',
     cue: 'Squeeze the glute of your back leg and shift forward slightly until you feel the front of that hip.',
-    focus: ['legs', 'core'],
+    focus: ['legs', 'core', 'hips', 'lower-back'],
   },
   {
     id: 'pigeon',
@@ -267,8 +312,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '45 s each side',
     seconds: 100,
+    timer: { sets: 1, seconds: 45, sides: SIDES },
+    exercise: 'pigeon-stretch',
     cue: 'Front shin across your body, back leg long. Fold forward if it feels okay.',
-    focus: ['legs'],
+    focus: ['legs', 'hips'],
   },
   {
     id: 'calf-stretch',
@@ -276,8 +323,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '30 s each side',
     seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: SIDES },
+    exercise: 'wall-calf-stretch',
     cue: 'Hands on a wall, back leg straight with the heel down, and lean in.',
-    focus: ['legs'],
+    focus: ['legs', 'mobility'],
   },
   {
     id: 'deep-squat',
@@ -285,8 +334,10 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '45 s',
     seconds: 50,
+    timer: { sets: 1, seconds: 45 },
+    exercise: 'deep-squat-hold',
     cue: 'Sit into the bottom of a squat. Hold onto something if you need to, and let your hips relax.',
-    focus: ['legs'],
+    focus: ['legs', 'hips'],
   },
   {
     id: 'childs-pose',
@@ -294,6 +345,7 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '45 s',
     seconds: 50,
+    timer: { sets: 1, seconds: 45 },
     cue: 'Knees wide, sit back on your heels and reach your arms long in front of you.',
     focus: 'all',
   },
@@ -303,9 +355,172 @@ export const drills: Drill[] = [
     phase: 'cooldown',
     dose: '1 min',
     seconds: 60,
+    timer: { sets: 1, seconds: 60 },
     cue: 'Breathe in for 4, hold for 4, out for 4, hold for 4. Lets your body switch into recovery.',
     focus: 'all',
+  },
+
+  // ---------- Daily mobility (routines only) ----------
+  {
+    id: 'neck-circles',
+    name: 'Neck Half Circles',
+    phase: 'mobility',
+    dose: '5 each way',
+    seconds: 40,
+    cue: 'Drop your chin to your chest and slowly roll one ear toward your shoulder, then back through the middle to the other side. Keep it to half circles in front.',
+    focus: ['mobility', 'shoulder'],
+  },
+  {
+    id: 'quadruped-t-spine',
+    name: 'Quadruped Thoracic Rotation',
+    phase: 'mobility',
+    dose: '8 each side',
+    seconds: 70,
+    cue: 'On all fours with one hand behind your head, rotate that elbow down toward the opposite wrist, then open up toward the ceiling. Hips stay still; the upper back does the turning.',
+    focus: ['mobility', 'shoulder', 'lower-back'],
+  },
+  {
+    id: 'open-book',
+    name: 'Open Book Rotation',
+    phase: 'mobility',
+    dose: '5 slow reps each side',
+    seconds: 70,
+    exercise: 'open-book',
+    cue: 'Lie on your side with your knees bent and stacked, arms together in front. Sweep the top arm open like a book and follow it with your eyes, then close.',
+    focus: ['mobility', 'lower-back', 'shoulder'],
+  },
+  {
+    id: 'seated-thoracic-extension',
+    name: 'Chair Thoracic Extension',
+    phase: 'mobility',
+    dose: '8 slow reps',
+    seconds: 50,
+    cue: 'Sit tall against the backrest of a chair with your hands behind your head. Gently arch your upper back over the top of the backrest, then come back up. Ribs stay down.',
+    focus: ['mobility', 'shoulder'],
+  },
+  {
+    id: 'childs-pose-reach',
+    name: "Child's Pose Side Reach",
+    phase: 'mobility',
+    dose: '30 s each side',
+    seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: ['Reach to the left', 'Reach to the right'] },
+    exercise: 'childs-pose-reach',
+    cue: 'From child\'s pose, walk both hands over to one side until you feel a stretch along the opposite side of your back. Breathe into it.',
+    focus: ['mobility', 'lower-back', 'shoulder'],
+  },
+  {
+    id: 'shoulder-cars',
+    name: 'Shoulder CARs',
+    phase: 'mobility',
+    dose: '3 slow circles each way, each arm',
+    seconds: 80,
+    cue: 'Make the biggest, slowest circle you can with a straight arm, thumb leading, while the rest of your body stays still. Make a fist and brace your stomach.',
+    focus: ['shoulder', 'mobility'],
+  },
+  {
+    id: 'cross-body-stretch',
+    name: 'Cross-body Shoulder Stretch',
+    phase: 'mobility',
+    dose: '30 s each side',
+    seconds: 70,
+    timer: { sets: 1, seconds: 30, sides: SIDES },
+    cue: 'Bring one arm across your chest and ease it closer with your other hand. Keep that shoulder down, away from your ear.',
+    focus: ['shoulder', 'mobility'],
+  },
+  {
+    id: 'puppy-pose',
+    name: 'Puppy Pose',
+    phase: 'mobility',
+    dose: '45 s',
+    seconds: 50,
+    timer: { sets: 1, seconds: 45 },
+    exercise: 'puppy-pose',
+    cue: 'From all fours, walk your hands forward and let your chest melt toward the floor, hips staying over your knees.',
+    focus: ['shoulder', 'mobility'],
+  },
+  {
+    id: 'worlds-greatest-stretch',
+    name: "World's Greatest Stretch",
+    phase: 'mobility',
+    dose: '5 each side',
+    seconds: 90,
+    cue: 'Step into a deep lunge and put the same-side hand down inside your front foot. Drop that elbow toward the floor, then rotate and reach the arm to the ceiling.',
+    focus: ['hips', 'mobility', 'lower-back'],
+  },
+  {
+    id: 'ninety-ninety-switch',
+    name: '90/90 Hip Switch',
+    phase: 'mobility',
+    dose: '8 switches',
+    seconds: 60,
+    exercise: 'ninety-ninety-switch',
+    cue: 'Sit with both knees bent at 90°, one leg in front and one to the side. Rotate both knees over to the other side without using your hands if you can.',
+    focus: ['hips', 'mobility'],
+  },
+  {
+    id: 'hip-cars',
+    name: 'Hip CARs',
+    phase: 'mobility',
+    dose: '3 slow circles each way, each leg',
+    seconds: 90,
+    exercise: 'hip-cars',
+    cue: 'On all fours, lift one knee and draw the biggest, slowest circle you can with it, keeping your back and pelvis still.',
+    focus: ['hips', 'mobility'],
+  },
+  {
+    id: 'frog-stretch',
+    name: 'Frog Stretch',
+    phase: 'mobility',
+    dose: '45 s',
+    seconds: 50,
+    timer: { sets: 1, seconds: 45 },
+    exercise: 'frog-stretch',
+    cue: 'On your forearms, slide your knees wide with your feet turned out and gently rock your hips back until you feel your inner thighs.',
+    focus: ['hips', 'mobility'],
+  },
+  {
+    id: 'inchworm',
+    name: 'Inchworm',
+    phase: 'mobility',
+    dose: '5 reps',
+    seconds: 60,
+    cue: 'Fold forward, walk your hands out to a plank, then walk your feet in toward your hands. Bend your knees as much as you need.',
+    focus: ['mobility', 'legs', 'core'],
+  },
+  {
+    id: 'ankle-circles',
+    name: 'Ankle Circles',
+    phase: 'mobility',
+    dose: '10 each way, each ankle',
+    seconds: 50,
+    cue: 'Lift one foot and draw big, slow circles with your toes, then go the other way and switch feet.',
+    focus: ['legs', 'mobility'],
+  },
+  {
+    id: 'hamstring-floss',
+    name: 'Hamstring Floss',
+    phase: 'mobility',
+    dose: '10 each leg',
+    seconds: 60,
+    exercise: 'hamstring-floss',
+    cue: 'Lying on your back, hold behind one knee and slowly straighten and bend that leg, pointing your toes as it straightens. Gentle, no bouncing.',
+    focus: ['legs', 'mobility'],
+  },
+  {
+    id: 'standing-forward-fold',
+    name: 'Standing Forward Fold',
+    phase: 'mobility',
+    dose: '30 s',
+    seconds: 40,
+    timer: { sets: 1, seconds: 30 },
+    exercise: 'standing-forward-fold',
+    cue: 'Soft knees, fold from your hips and let your head and arms hang. Sway gently side to side.',
+    focus: ['legs', 'mobility', 'lower-back'],
   },
 ];
 
 export const drillById: Record<string, Drill> = Object.fromEntries(drills.map((d) => [d.id, d]));
+
+/** The drill's demo video: its own, or the one for the exercise it's a version of. */
+export const drillVideo = (d: Drill): ExerciseVideo | undefined => drillVideos[d.id] ?? (d.exercise ? videos[d.exercise] : undefined);
