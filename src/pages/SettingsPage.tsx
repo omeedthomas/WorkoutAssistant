@@ -1,13 +1,15 @@
-import { useRef } from 'react';
-import { Download, RotateCcw, Target, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Bell, BellOff, Download, RotateCcw, Target, Upload } from 'lucide-react';
 import { AccountSection } from '../components/Account';
+import { remindersEnabled, remindersSupported, setRemindersEnabled, showNotification } from '../components/StreakReminder';
 import { useToast } from '../components/Toast';
+import { REMINDER_HOURS } from '../lib/history';
 import { exercises, tracks, trees } from '../data';
 import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
 
 export function SettingsPage() {
-  const { state, reset, importState } = useProgress();
+  const { state, reset, importState, setUnits } = useProgress();
   const cloud = useCloud();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -34,7 +36,7 @@ export function SettingsPage() {
   const where = cloud.user ? 'on this device and in your account' : 'on this device';
 
   const confirmReset = () => {
-    if (window.confirm(`Reset all progress? This deletes every mastered skill, logged session and goal ${where}.`)) {
+    if (window.confirm(`Reset all progress? This deletes every mastered skill, logged session, goal and weigh-in ${where}.`)) {
       reset();
       toast('Progress reset');
     }
@@ -47,6 +49,21 @@ export function SettingsPage() {
       </header>
 
       <AccountSection />
+
+      <section className="card settings-section">
+        <h2>Units</h2>
+        <p className="muted small">For your body weight and the added weight on weighted exercises.</p>
+        <div className="segmented" role="group" aria-label="Weight units">
+          <button aria-pressed={state.units === 'lb'} onClick={() => setUnits('lb')}>
+            Pounds (lb)
+          </button>
+          <button aria-pressed={state.units === 'kg'} onClick={() => setUnits('kg')}>
+            Kilograms (kg)
+          </button>
+        </div>
+      </section>
+
+      <StreakReminderSettings />
 
       <section className="card settings-section">
         <h2>Starting point</h2>
@@ -86,7 +103,7 @@ export function SettingsPage() {
 
       <section className="card settings-section settings-section--danger">
         <h2>Reset</h2>
-        <p className="muted small">Clear every mastered skill, logged session and goal {where}.</p>
+        <p className="muted small">Clear every mastered skill, logged session, goal and weigh-in {where}.</p>
         <button className="btn btn--danger" onClick={confirmReset}>
           <RotateCcw size={16} aria-hidden /> Reset all progress
         </button>
@@ -97,5 +114,65 @@ export function SettingsPage() {
         limits, warm up first, and stop if something hurts.
       </p>
     </div>
+  );
+}
+
+const hourLabel = (h: number) => new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).format(new Date(2026, 0, 1, h));
+
+/** Turn system notifications for an at-risk streak on or off (per device, since permission is per browser). */
+function StreakReminderSettings() {
+  const toast = useToast();
+  const supported = remindersSupported();
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(supported ? Notification.permission : 'unsupported');
+  const [enabled, setEnabled] = useState(() => remindersEnabled() && permission === 'granted');
+  const times = REMINDER_HOURS.map(hourLabel).join(' and ');
+
+  const turnOn = async () => {
+    const result = permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    setPermission(result);
+    if (result !== 'granted') {
+      toast('Notifications are blocked', "Allow notifications for this site in your browser's settings, then try again.");
+      return;
+    }
+    setRemindersEnabled(true);
+    setEnabled(true);
+    showNotification('Streak reminders are on', `If your streak is about to end, you'll get a reminder at ${times}.`);
+  };
+
+  const turnOff = () => {
+    setRemindersEnabled(false);
+    setEnabled(false);
+    toast('Streak reminders are off');
+  };
+
+  return (
+    <section className="card settings-section">
+      <h2>Streak reminders</h2>
+      <p className="muted small">
+        On the last day you can train to keep your streak, Ascent reminds you when you open the app. Turn on
+        notifications to also get a reminder at {times} if you still haven't worked out. They come from your browser
+        while Ascent is open in a tab (it can be in the background).
+      </p>
+      {permission === 'unsupported' ? (
+        <p className="callout callout--muted small">This browser doesn't support notifications. You'll still see reminders in the app.</p>
+      ) : permission === 'denied' ? (
+        <p className="callout callout--muted small">
+          Notifications are blocked for this site. Allow them in your browser's site settings to turn reminders on.
+        </p>
+      ) : enabled ? (
+        <div className="button-row">
+          <span className="reminder-status">
+            <Bell size={16} aria-hidden /> Notifications on
+          </span>
+          <button className="btn" onClick={turnOff}>
+            <BellOff size={16} aria-hidden /> Turn off
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn--primary" onClick={() => void turnOn()}>
+          <Bell size={16} aria-hidden /> Turn on notifications
+        </button>
+      )}
+    </section>
   );
 }

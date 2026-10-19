@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { BottomNav, Header } from './components/Nav';
+import { StreakReminder } from './components/StreakReminder';
 import { useRoute } from './lib/router';
+import { HistoryPage } from './pages/HistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StartPage } from './pages/StartPage';
 import { TrainPage } from './pages/TrainPage';
@@ -14,6 +16,7 @@ export default function App() {
     const titles: Record<typeof route.name, string> = {
       train: 'Home',
       workout: 'Workout',
+      history: 'History',
       trees: 'Skill trees',
       start: 'Starting point',
       settings: 'Settings',
@@ -28,10 +31,12 @@ export default function App() {
         {route.name === 'trees' && <TreesPage view={route.tree} skill={route.skill} />}
         {route.name === 'train' && <TrainPage />}
         {route.name === 'workout' && <WorkoutPage focus={route.focus} />}
+        {route.name === 'history' && <HistoryPage day={route.day} />}
         {route.name === 'start' && <StartPage />}
         {route.name === 'settings' && <SettingsPage />}
       </main>
       <BottomNav route={route} />
+      <StreakReminder />
     </div>
   );
 }

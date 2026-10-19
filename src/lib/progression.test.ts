@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { exerciseById } from '../data';
 import type { LogEntry } from '../state/progress';
 import { planSession, sessionsToMastery, startValue, stepFor } from './progression';
+import { fromUnits, toUnits } from './units';
 
 const now = new Date('2026-10-18T12:00:00.000Z');
 const pushup = exerciseById['pushup']; // 3 × 12 reps
@@ -122,5 +123,56 @@ describe('sessionsToMastery', () => {
   it('counts set and rep steps', () => {
     expect(sessionsToMastery(pushup, { sets: 2, value: 10 })).toBe(1 + 1 + 2);
     expect(sessionsToMastery(pushup, { sets: 3, value: 12 })).toBe(1);
+  });
+});
+
+describe('weighted exercises', () => {
+  const pull = exerciseById['weighted-pullup']; // 3 × 5 at +20 kg
+  const kg = (lb: number) => fromUnits(lb, 'lb');
+  /** Newest first; `p` is the planned [sets, reps, added lb]. */
+  const lifts = (...sessions: [sets: number, reps: number, lb: number, p?: [number, number, number]][]): LogEntry[] =>
+    sessions.map(([sets, value, lb, p], i) => ({
+      id: String(i),
+      date: new Date(now.getTime() - (i + 1) * 86_400_000).toISOString(),
+      sets,
+      value,
+      addedKg: kg(lb),
+      ...(p && { planned: { sets: p[0], value: p[1], addedKg: kg(p[2]) } }),
+    }));
+  const lbPlan = (logs: LogEntry[], mastered = false) => {
+    const p = planSession(pull, logs, { now, mastered, units: 'lb' });
+    return { kind: p.kind, sets: p.sets, value: p.value, lb: toUnits(p.addedKg ?? 0, 'lb') };
+  };
+
+  it('starts light at the target reps', () => {
+    expect(lbPlan([])).toEqual({ kind: 'start', sets: 3, value: 5, lb: 5 });
+    expect(planSession(pull, [], { now, units: 'kg' }).addedKg).toBe(2.5);
+  });
+
+  it('adds one plate after a completed plan', () => {
+    expect(lbPlan(lifts([3, 5, 20, [3, 5, 20]], [3, 5, 15, [3, 5, 15]]))).toEqual({ kind: 'progress', sets: 3, value: 5, lb: 25 });
+  });
+
+  it('repeats the weight after a near miss, and drops it after a big one', () => {
+    expect(lbPlan(lifts([3, 4, 25, [3, 5, 25]], [3, 5, 20, [3, 5, 20]]))).toMatchObject({ kind: 'repeat', lb: 25 });
+    expect(lbPlan(lifts([3, 5, 15, [3, 5, 25]], [3, 5, 20, [3, 5, 20]]))).toMatchObject({ kind: 'reset', lb: 15 });
+  });
+
+  it('gets all the reps at a weight before adding more', () => {
+    expect(lbPlan(lifts([3, 3, 30]))).toMatchObject({ kind: 'repeat', value: 5, lb: 30 });
+  });
+
+  it('reaches mastery at the target weight shown in your units', () => {
+    expect(lbPlan(lifts([3, 5, 45]))).toMatchObject({ kind: 'mastery', lb: 45 });
+    expect(lbPlan(lifts([3, 5, 40]))).toMatchObject({ kind: 'progress', lb: 45 });
+  });
+
+  it('keeps adding weight after mastery while sessions go to plan', () => {
+    expect(lbPlan(lifts([3, 5, 45, [3, 5, 45]]), true)).toMatchObject({ kind: 'progress', lb: 50 });
+    expect(lbPlan(lifts([3, 4, 50, [3, 5, 50]]), true)).toMatchObject({ kind: 'maintain', lb: 50 });
+  });
+
+  it('counts the plates left to the target', () => {
+    expect(sessionsToMastery(pull, { sets: 3, value: 5, addedKg: kg(35) }, 'lb')).toBe(1 + 2);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { exerciseById, exercises, featuredGoals, tracks, trees } from '.';
+import { treeImages } from './treeImages';
 import { videos } from './videos';
 
 describe('skill catalog', () => {
@@ -66,6 +67,20 @@ describe('skill catalog', () => {
     for (const tree of ['push', 'pull', 'core', 'legs']) {
       expect(exercises.some((e) => e.tree === tree && e.requires.length === 0), tree).toBe(true);
     }
+  });
+
+  it('gives every tree an ultimate skill from its own tree, near the top of it', () => {
+    for (const tree of trees) {
+      const peak = exerciseById[tree.ultimate];
+      expect(peak, tree.id).toBeDefined();
+      expect(peak.tree, tree.id).toBe(tree.id);
+      const top = Math.max(...exercises.filter((e) => e.tree === tree.id && !e.target.addedKg).map((e) => e.level));
+      expect(peak.level, tree.id).toBeGreaterThanOrEqual(top - 2);
+    }
+  });
+
+  it('has a Home card photo for every tree', () => {
+    for (const tree of trees) expect(treeImages[tree.id], tree.id).toMatch(/\.webp/);
   });
 
   it('only features goals that exist', () => {

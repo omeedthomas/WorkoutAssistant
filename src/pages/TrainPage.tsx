@@ -1,19 +1,15 @@
 import { useMemo, type CSSProperties } from 'react';
-import { ArrowRight, ArrowUp, Dumbbell, Flame, Plus, Star, Target, Trophy, X } from 'lucide-react';
-import { planKindLabel } from '../components/SessionPlanCard';
-import { exerciseById, exercises, featuredGoals, treeById, trees } from '../data';
-import { formatDate, formatSet, formatTarget, pct } from '../lib/format';
+import { ArrowRight, Flame, Target, Trophy } from 'lucide-react';
+import { GoogleSignInButton } from '../components/Account';
+import { StreakWidget } from '../components/Streak';
+import { TodayCard } from '../components/TodayCard';
+import { exerciseById, exercises, trees, type TreeDef } from '../data';
+import { treeImages } from '../data/treeImages';
+import { formatDate, formatTarget, formatWork, pct } from '../lib/format';
 import { goalProgress, nextStepsToward, statusOf, treeStats } from '../lib/graph';
-import { isLevelUp } from '../lib/progression';
-import { skillHref, toHash } from '../lib/router';
-import { generateWorkout, suggestSplit, type WorkoutExercise } from '../lib/workout';
-import { splits } from '../data/splits';
-import { loadActiveWorkout, workoutProgress } from '../state/activeWorkout';
-import { focusTitle } from './WorkoutPage';
-import { MAX_GOALS } from '../state/progress';
+import { skillHref } from '../lib/router';
 import { useCloud } from '../state/CloudContext';
 import { useProgress } from '../state/ProgressContext';
-import { GoogleSignInButton } from '../components/Account';
 
 export function TrainPage() {
   const { state } = useProgress();
@@ -26,9 +22,17 @@ export function TrainPage() {
     return { mastered, ready, sessions: allLogs.length, days };
   }, [state]);
 
+  // Areas in your plan first, then the rest in the usual order.
+  const planned = new Set(state.workoutPlan?.focus ?? []);
+  const ordered = [...trees].sort((a, b) => Number(planned.has(b.id)) - Number(planned.has(a.id)));
+
   return (
-    <div className="page">
+    <div className="page home">
       {!state.onboarded && <Welcome />}
+
+      <StreakWidget />
+
+      <TodayCard />
 
       <section className="stat-row" aria-label="Your progress">
         <Stat label="Skills mastered" value={stats.mastered} sub={`of ${exercises.length}`} />
@@ -37,54 +41,21 @@ export function TrainPage() {
         <Stat label="Days trained" value={stats.days} />
       </section>
 
-      <div className="train-grid">
-        <TodayWorkoutCard />
+      <RecentActivity />
 
-        <GoalsCard />
-
-        <section className="card">
-          <div className="card__head">
-            <h2>Tree progress</h2>
-            <a href="#/trees/all" className="link-btn">
-              View all <ArrowRight size={14} aria-hidden />
-            </a>
-          </div>
-          <ul className="tree-meters">
-            {trees.map((t) => {
-              const s = treeStats(t.id, state.mastered);
-              return (
-                <li key={t.id}>
-                  <a
-                    href={`#/trees/${t.id}`}
-                    className="tree-meter"
-                    style={{ '--tree': t.color } as CSSProperties}
-                  >
-                    <span className="tree-meter__label">
-                      <span className="dot" aria-hidden />
-                      {t.name}
-                    </span>
-                    <span className="tree-meter__value">
-                      {s.done}/{s.total}
-                    </span>
-                    <span
-                      className="meter meter--tree"
-                      role="meter"
-                      aria-label={`${t.name} progress`}
-                      aria-valuemin={0}
-                      aria-valuemax={s.total}
-                      aria-valuenow={s.done}
-                    >
-                      <span style={{ width: pct(s.done / s.total) }} />
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <RecentActivity />
-      </div>
+      <section className="skill-section" aria-labelledby="skills-title">
+        <div className="home-section__head">
+          <h2 id="skills-title">Your skills</h2>
+          <a href="#/trees/all" className="link-btn">
+            All trees <ArrowRight size={14} aria-hidden />
+          </a>
+        </div>
+        <div className="skill-grid">
+          {ordered.map((t) => (
+            <TreeCard key={t.id} tree={t} inPlan={planned.has(t.id)} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -130,190 +101,52 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
   );
 }
 
-/** Home card: today's suggested training day and a preview of its main work. */
-function TodayWorkoutCard() {
+/**
+ * One area (tree) as a square photo card: how far along the path to its
+ * ultimate skill you are, and the step you're on now. Opens the tree.
+ */
+function TreeCard({ tree, inPlan }: { tree: TreeDef; inPlan: boolean }) {
   const { state } = useProgress();
-  const active = useMemo(() => loadActiveWorkout(), []);
-  const suggestion = useMemo(() => suggestSplit(state), [state]);
-  const preview = useMemo(() => generateWorkout(state, suggestion.split.focus, 'standard'), [state, suggestion]);
-
-  if (active) {
-    const { done, total } = workoutProgress(active);
-    return (
-      <section className="card card--session">
-        <div className="card__head">
-          <h2>
-            <Dumbbell size={18} aria-hidden /> Today's workout
-          </h2>
-        </div>
-        <p>
-          <strong>{focusTitle(active.focus)}</strong> is in progress: {done} of {total} done.
-        </p>
-        <span className="meter" aria-hidden>
-          <span style={{ width: pct(total ? done / total : 0) }} />
-        </span>
-        <a href="#/workout" className="btn btn--primary">
-          Continue workout <ArrowRight size={16} aria-hidden />
-        </a>
-      </section>
-    );
-  }
+  const peak = exerciseById[tree.ultimate];
+  const path = goalProgress(peak.id, state.mastered);
+  const all = treeStats(tree.id, state.mastered);
+  const next = nextStepsToward(peak.id, state.mastered)[0];
+  const done = !!state.mastered[peak.id];
 
   return (
-    <section className="card card--session">
-      <div className="card__head">
-        <h2>
-          <Dumbbell size={18} aria-hidden /> Today's workout
-        </h2>
-        <span className="muted small">About {preview.minutes} min</span>
-      </div>
-      <div className="today-split">
-        <span className="eyebrow">Suggested training day</span>
-        <strong className="today-split__name">{suggestion.split.name}</strong>
-        <p className="muted small">{suggestion.reason}</p>
-      </div>
-      <p className="small muted">Warm-up, then these exercises at your level, then a cooldown:</p>
-      <ol className="session-list">
-        {preview.main.map((m) => (
-          <SessionItem key={m.exercise.id} item={m} />
-        ))}
-      </ol>
-      <a href={toHash({ name: 'workout', focus: suggestion.split.focus })} className="btn btn--primary">
-        Build this workout <ArrowRight size={16} aria-hidden />
-      </a>
-      <div className="today-split__others">
-        <span className="eyebrow">Or train something else</span>
-        <div className="chips">
-          {splits
-            .filter((s) => s.id !== suggestion.split.id)
-            .map((s) => (
-              <a key={s.id} className="chip" href={toHash({ name: 'workout', focus: s.focus })}>
-                {s.name}
-              </a>
-            ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SessionItem({ item }: { item: WorkoutExercise }) {
-  const { state } = useProgress();
-  const { exercise: ex, plan, why } = item;
-  const last = state.logs[ex.id]?.[0];
-  const unit = ex.target.unit;
-  const each = ex.target.perSide ? ' /side' : '';
-  return (
-    <li>
-      <a
-        href={skillHref(ex.id)}
-        className="session-item"
-        style={{ '--tree': treeById[ex.tree].color } as CSSProperties}
-      >
-        <span className="session-item__main">
-          <span className="session-item__meta">
-            <span className="dot" aria-hidden />
-            {treeById[ex.tree].name} · L{ex.level}
-            <span className={`tag${why.startsWith('Toward') || why === 'Your goal' ? ' tag--goal' : ''}`}>{why}</span>
-          </span>
-          <span className="session-item__name">{ex.name}</span>
-          <span className="session-item__best">
-            {last ? `Last ${formatSet(last.sets, last.value, unit)} · ` : ''}Goal {formatTarget(ex.target, { short: true })}
-          </span>
+    <a
+      href={`#/trees/${tree.id}`}
+      className={`tree-card${done ? ' is-done' : ''}`}
+      style={{ '--tree': tree.color } as CSSProperties}
+      aria-label={`${tree.name}: ${path.done} of ${path.total} steps to ${peak.name}${next && !done ? `, now on ${next.name}` : ''}`}
+    >
+      <img className="tree-card__photo" src={treeImages[tree.id]} alt="" loading="lazy" decoding="async" />
+      <span className="tree-card__badges">
+        {inPlan && <span className="tree-card__badge tree-card__badge--plan">In your plan</span>}
+        <span className="tree-card__badge">
+          {all.done}/{all.total}
+          <span className="tree-card__badge-word"> skills</span>
         </span>
-        <span className="session-item__plan">
-          <span className="session-item__target">
-            {plan.sets}×{plan.value}
-            {unit === 'seconds' ? 's' : ''}
-            {each}
-          </span>
-          <span className={`session-item__kind plan-kind--${plan.kind}`}>
-            {isLevelUp(plan) && <ArrowUp size={11} aria-hidden />}
-            {planKindLabel[plan.kind]}
-          </span>
+      </span>
+      <span className="tree-card__body">
+        <span className="tree-card__name">{tree.name}</span>
+        <span className="tree-card__goal">
+          {done ? <Trophy size={12} aria-hidden /> : null}
+          {peak.name}
         </span>
-        <ArrowRight size={16} className="session-item__go" aria-hidden />
-      </a>
-    </li>
-  );
-}
-
-function GoalsCard() {
-  const { state, toggleGoal } = useProgress();
-  const suggestions = featuredGoals.filter((g) => !state.goals.includes(g) && !state.mastered[g]);
-  const full = state.goals.length >= MAX_GOALS;
-
-  return (
-    <section className="card">
-      <div className="card__head">
-        <h2>
-          <Star size={18} aria-hidden /> Goals
-        </h2>
-      </div>
-      {state.goals.length === 0 && (
-        <p className="muted small">
-          Pick a skill to aim for. Its whole path gets highlighted in the trees and prioritised in your sessions.
-        </p>
-      )}
-      <ul className="goal-list">
-        {state.goals.map((g) => {
-          const ex = exerciseById[g];
-          const { done, total } = goalProgress(g, state.mastered);
-          const next = nextStepsToward(g, state.mastered).slice(0, 3);
-          const complete = !!state.mastered[g];
-          return (
-            <li key={g} className="goal" style={{ '--tree': treeById[ex.tree].color } as CSSProperties}>
-              <div className="goal__head">
-                <a href={skillHref(g)} className="goal__name">
-                  {complete && <Trophy size={16} aria-hidden />} {ex.name}
-                </a>
-                <span className="goal__count">
-                  {done}/{total} steps
-                </span>
-                <button className="icon-btn icon-btn--sm" aria-label={`Remove goal ${ex.name}`} onClick={() => toggleGoal(g)}>
-                  <X size={14} />
-                </button>
-              </div>
-              <span className="meter meter--tree" aria-hidden>
-                <span style={{ width: pct(done / total) }} />
-              </span>
-              {complete ? (
-                <p className="goal__next">Achieved! Pick a new goal to keep climbing.</p>
-              ) : next.length > 0 ? (
-                <p className="goal__next">
-                  Next:{' '}
-                  {next.map((n, i) => (
-                    <span key={n.id}>
-                      {i > 0 && ', '}
-                      <a href={skillHref(n.id)}>{n.name}</a>
-                    </span>
-                  ))}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      {suggestions.length > 0 && !full && (
-        <>
-          <h3 className="eyebrow">{state.goals.length ? 'Add another goal' : 'Popular goals'}</h3>
-          <div className="chips">
-            {suggestions.slice(0, 8).map((g) => (
-              <button
-                key={g}
-                className="chip chip--add"
-                style={{ '--tree': treeById[exerciseById[g].tree].color } as CSSProperties}
-                onClick={() => toggleGoal(g)}
-              >
-                <Plus size={12} aria-hidden />
-                {exerciseById[g].name}
-              </button>
-            ))}
-          </div>
-          <p className="muted small">Or open any skill in a tree and tap “Set as goal”.</p>
-        </>
-      )}
-    </section>
+        <span className="tree-card__meter" aria-hidden>
+          <span style={{ width: pct(path.done / path.total) }} />
+        </span>
+        <span className="tree-card__steps">
+          {done ? 'Mastered' : `${path.done} of ${path.total} steps`}
+        </span>
+        {next && !done && (
+          <span className="tree-card__next">
+            Next: <strong>{next.name}</strong> {formatTarget(next.target, { short: true, units: state.units })}
+          </span>
+        )}
+      </span>
+    </a>
   );
 }
 
@@ -321,7 +154,7 @@ function RecentActivity() {
   const { state } = useProgress();
   const items = useMemo(() => {
     const logs = Object.entries(state.logs).flatMap(([id, list]) =>
-      list.map((l) => ({ kind: 'log' as const, id, date: l.date, text: formatSet(l.sets, l.value, exerciseById[id].target.unit) })),
+      list.map((l) => ({ kind: 'log' as const, id, date: l.date, text: formatWork(exerciseById[id], l, state.units) })),
     );
     // Skills mastered together (e.g. a starting point) collapse into one entry.
     const byDate = new Map<string, string[]>();
@@ -335,13 +168,18 @@ function RecentActivity() {
         text: ids.length > 1 ? `Mastered, plus ${ids.length - 1} more` : 'Mastered',
       };
     });
-    return [...logs, ...mastered].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-  }, [state.logs, state.mastered]);
+    return [...logs, ...mastered].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  }, [state.logs, state.mastered, state.units]);
 
   return (
-    <section className="card">
+    <section className="card home-activity">
       <div className="card__head">
         <h2>Recent activity</h2>
+        {items.length > 0 && (
+          <a href="#/history" className="link-btn">
+            History <ArrowRight size={14} aria-hidden />
+          </a>
+        )}
       </div>
       {items.length === 0 ? (
         <p className="muted small">Nothing yet. Open a skill and log your first session.</p>

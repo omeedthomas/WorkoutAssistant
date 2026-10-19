@@ -1,13 +1,17 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import type { Exercise } from '../data';
 import { missingAncestors, newlyUnlocked, withAncestors } from '../lib/graph';
+import type { Units } from '../lib/units';
 import {
   initialProgress,
   localDay,
   makeId,
   progressReducer,
   sanitizeProgress,
+  type LogEntry,
   type ProgressState,
+  type Work,
+  type WorkoutPlan,
   type WorkoutRecord,
 } from './progress';
 
@@ -29,7 +33,7 @@ export interface ProgressApi {
   master: (id: string, opts?: { includeAncestors?: boolean }) => Exercise[];
   unmaster: (id: string) => void;
   /** Logs a session and returns its id. */
-  log: (id: string, sets: number, value: number, planned?: { sets: number; value: number }) => string;
+  log: (id: string, done: Work, planned?: Work) => string;
   deleteLog: (id: string, logId: string) => void;
   toggleGoal: (id: string) => void;
   /** For each chosen exercise, mastered = it + its ancestors; `unmaster` is cleared first. */
@@ -37,8 +41,15 @@ export interface ProgressApi {
   setOnboarded: () => void;
   /** Records a workout started from the Workout page (filed under its day). */
   recordWorkout: (record: WorkoutRecord) => void;
-  finishWorkout: (startedAt: string) => void;
+  finishWorkout: (startedAt: string, kcal?: number) => void;
   removeWorkout: (startedAt: string) => void;
+  /** Body weight in kg, for today unless `day` is given. One entry per day; logging again replaces it. */
+  logWeight: (kg: number, day?: string) => void;
+  deleteWeight: (day: string) => void;
+  setWeightGoal: (kg: number | null) => void;
+  setUnits: (units: Units) => void;
+  /** Saves (or clears) the areas you train and how long, for Home's daily workout. */
+  setWorkoutPlan: (plan: Omit<WorkoutPlan, 'at'> | null) => void;
   reset: () => void;
   importState: (raw: unknown) => boolean;
 }
@@ -84,9 +95,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         return newlyUnlocked(state.mastered, after);
       },
       unmaster: (id) => dispatch({ type: 'unmaster', id }),
-      log(id, sets, value, planned) {
+      log(id, done, planned) {
         const date = now();
-        const entry = { id: makeId(), date, day: localDay(date), sets, value, ...(planned && { planned }) };
+        const entry: LogEntry = { id: makeId(), date, day: localDay(date), sets: done.sets, value: done.value };
+        if (done.addedKg !== undefined) entry.addedKg = done.addedKg;
+        if (planned) entry.planned = planned;
         dispatch({ type: 'log', exerciseId: id, entry });
         return entry.id;
       },
@@ -96,9 +109,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'applyStartingPoint', master: withAncestors(chosen), unmaster, at: now() }),
       setOnboarded: () => dispatch({ type: 'setOnboarded' }),
       recordWorkout: (record) => dispatch({ type: 'recordWorkout', day: localDay(record.startedAt), record }),
-      finishWorkout: (startedAt) =>
-        dispatch({ type: 'finishWorkout', day: localDay(startedAt), startedAt, at: now() }),
+      finishWorkout: (startedAt, kcal) =>
+        dispatch({ type: 'finishWorkout', day: localDay(startedAt), startedAt, at: now(), kcal }),
       removeWorkout: (startedAt) => dispatch({ type: 'removeWorkout', day: localDay(startedAt), startedAt }),
+      logWeight: (kg, day = localDay()) => dispatch({ type: 'logWeight', day, entry: { kg, at: now() } }),
+      deleteWeight: (day) => dispatch({ type: 'deleteWeight', day }),
+      setWeightGoal: (kg) => dispatch({ type: 'setWeightGoal', goal: kg === null ? null : { kg, at: now() } }),
+      setUnits: (units) => dispatch({ type: 'setUnits', units }),
+      setWorkoutPlan: (plan) => dispatch({ type: 'setWorkoutPlan', plan: plan && { ...plan, at: now() } }),
       reset: () => dispatch({ type: 'reset' }),
       importState(raw) {
         const next = sanitizeProgress(raw);

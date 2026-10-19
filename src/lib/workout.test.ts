@@ -110,6 +110,20 @@ describe('generateWorkout', () => {
     const b = generateWorkout(intermediate, ['push', 'pull'], 'standard', now);
     expect(a.main.map((m) => m.exercise.id)).toEqual(b.main.map((m) => m.exercise.id));
   });
+
+  it('leaves weighted exercises out until you have logged one, then plans them in your units', () => {
+    const ids = (s: ProgressState) => generateWorkout(s, ['push', 'pull'], 'standard', now).main.map((m) => m.exercise.id);
+    expect(ids(intermediate).some((id) => id.startsWith('weighted-'))).toBe(false);
+
+    const lifting: ProgressState = {
+      ...intermediate,
+      units: 'lb',
+      logs: { 'weighted-pullup': [{ id: 'w', date: daysAgo(2), sets: 3, value: 5, addedKg: 4.536, planned: { sets: 3, value: 5, addedKg: 4.536 } }] },
+    };
+    const w = generateWorkout(lifting, ['push', 'pull'], 'standard', now).main.find((m) => m.exercise.id === 'weighted-pullup');
+    expect(w?.plan).toMatchObject({ kind: 'progress', sets: 3, value: 5 });
+    expect(w?.plan.addedKg).toBeCloseTo(6.804, 2); // 15 lb, up from 10 lb
+  });
 });
 
 describe('suggestSplit', () => {

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Check, Star, Trash, Trophy, X } from 'lucide-react';
 import { dependentsOf, exerciseById, tierOf, treeById } from '../data';
 import { videos } from '../data/videos';
-import { formatDate, formatSet, formatTarget, pct } from '../lib/format';
+import { formatDate, formatTarget, formatWork, pct } from '../lib/format';
 import { bestLog, logScore, meetsTarget, missingAncestors, statusOf } from '../lib/graph';
 import { planSession } from '../lib/progression';
 import { skillHref, type TreeView } from '../lib/router';
+import { fromUnits, loadStepKg, toUnits } from '../lib/units';
 import { MAX_GOALS } from '../state/progress';
 import { useProgress } from '../state/ProgressContext';
 import { HistoryChart } from './HistoryChart';
@@ -32,11 +33,13 @@ export function SkillDetail({ id, view, onClose }: Props) {
   const missing = missingAncestors(id, state.mastered);
   const isGoal = state.goals.includes(id);
   const unit = ex.target.unit;
+  const units = state.units;
+  const weighted = ex.target.addedKg !== undefined;
   const video = videos[id];
 
   const plan = useMemo(
-    () => planSession(ex, logs, { mastered: status === 'mastered' }),
-    [ex, logs, status],
+    () => planSession(ex, logs, { mastered: status === 'mastered', units }),
+    [ex, logs, status, units],
   );
   const loggedToday = !!logs[0] && new Date(logs[0].date).toDateString() === new Date().toDateString();
 
@@ -44,7 +47,9 @@ export function SkillDetail({ id, view, onClose }: Props) {
   // Pre-fill with the plan; adjust to what you actually did before logging.
   const [sets, setSets] = useState(plan.sets);
   const [value, setValue] = useState(plan.value);
+  const [added, setAdded] = useState(toUnits(plan.addedKg ?? 0, units));
   const [hitTarget, setHitTarget] = useState(false);
+  const done = { sets, value, ...(weighted && { addedKg: fromUnits(added, units) }) };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -68,18 +73,18 @@ export function SkillDetail({ id, view, onClose }: Props) {
   };
 
   const handleLog = () => {
-    const planned = { sets: plan.sets, value: plan.value };
-    log(id, sets, value, planned);
-    if (status !== 'mastered' && meetsTarget(ex, { sets, value })) {
+    const planned = { sets: plan.sets, value: plan.value, ...(weighted && { addedKg: plan.addedKg }) };
+    log(id, done, planned);
+    if (status !== 'mastered' && meetsTarget(ex, done)) {
       setHitTarget(true);
       return;
     }
-    const entry = { id: 'new', date: new Date().toISOString(), sets, value, planned };
-    const next = planSession(ex, [entry, ...logs], { mastered: status === 'mastered' });
-    const completed = sets >= planned.sets && value >= planned.value;
+    const entry = { id: 'new', date: new Date().toISOString(), ...done, planned };
+    const next = planSession(ex, [entry, ...logs], { mastered: status === 'mastered', units });
+    const completed = sets >= planned.sets && value >= planned.value && (done.addedKg ?? 0) >= (planned.addedKg ?? 0) - 0.01;
     toast(
       completed && status !== 'mastered' ? 'Plan complete. Nice work!' : 'Session logged',
-      `Next session: ${formatSet(next.sets, next.value, unit)}${ex.target.perSide ? ' each side' : ''} (${planKindLabel[next.kind].toLowerCase()})`,
+      `Next session: ${formatWork(ex, next, units)}${ex.target.perSide ? ' each side' : ''} (${planKindLabel[next.kind].toLowerCase()})`,
     );
   };
 
@@ -117,12 +122,12 @@ export function SkillDetail({ id, view, onClose }: Props) {
         <div className="target-card">
           <div>
             <span className="eyebrow">Target to master</span>
-            <strong className="target-card__value">{formatTarget(ex.target)}</strong>
+            <strong className="target-card__value">{formatTarget(ex.target, { units })}</strong>
           </div>
           {best && status !== 'mastered' && (
             <div className="target-card__best">
               <span>
-                Best: {formatSet(best.sets, best.value, unit)} · {pct(logScore(ex, best))}
+                Best: {formatWork(ex, best, units)} · {pct(logScore(ex, best))}
               </span>
               <span className="meter" aria-hidden>
                 <span style={{ width: pct(logScore(ex, best)) }} />
@@ -144,7 +149,7 @@ export function SkillDetail({ id, view, onClose }: Props) {
         )}
 
         <section className="detail__section log-box">
-          <SessionPlanCard ex={ex} plan={plan} title={loggedToday ? 'Next session' : "Today's plan"} />
+          <SessionPlanCard ex={ex} plan={plan} title={loggedToday ? 'Next session' : "Today's plan"} units={units} />
           <h3>Log what you did</h3>
           <div className="log-box__inputs">
             <NumberStepper label="Sets" value={sets} onChange={setSets} max={20} />
@@ -155,9 +160,19 @@ export function SkillDetail({ id, view, onClose }: Props) {
               step={unit === 'seconds' ? 5 : 1}
               max={unit === 'seconds' ? 600 : 200}
             />
+            {weighted && (
+              <NumberStepper
+                label={`Added weight (${units})`}
+                value={added}
+                onChange={setAdded}
+                step={toUnits(loadStepKg(units), units)}
+                min={0}
+                max={units === 'lb' ? 400 : 180}
+              />
+            )}
           </div>
           <button className="btn btn--block" onClick={handleLog}>
-            Log {formatSet(sets, value, unit)}
+            Log {formatWork(ex, done, units)}
           </button>
           {hitTarget && status !== 'mastered' && (
             <div className="callout callout--success">
@@ -172,15 +187,18 @@ export function SkillDetail({ id, view, onClose }: Props) {
           {logs.length > 0 && (
             <>
               <h3>History</h3>
-              <HistoryChart ex={ex} logs={logs} />
+              <HistoryChart ex={ex} logs={logs} units={units} />
               <ul className="history" aria-label="Recent sessions">
                 {logs.slice(0, 6).map((l) => (
                   <li key={l.id}>
                     <span className="history__date">{formatDate(l.date)}</span>
-                    <span className="history__value">{formatSet(l.sets, l.value, unit)}</span>
+                    <span className="history__value">{formatWork(ex, l, units)}</span>
                     {meetsTarget(ex, l) ? (
                       <Trophy size={14} className="history__hit" aria-label="Mastery target met" />
-                    ) : l.planned && l.sets >= l.planned.sets && l.value >= l.planned.value ? (
+                    ) : l.planned &&
+                      l.sets >= l.planned.sets &&
+                      l.value >= l.planned.value &&
+                      (l.addedKg ?? 0) >= (l.planned.addedKg ?? 0) - 0.01 ? (
                       <Check size={14} className="history__hit" aria-label="Plan completed" />
                     ) : null}
                     <button

@@ -6,6 +6,8 @@ import './styles/layout.css';
 import './styles/map.css';
 import './styles/detail.css';
 import './styles/pages.css';
+import './styles/history.css';
+import './styles/home.css';
 import App from './App';
 import { ToastProvider } from './components/Toast';
 import { CloudProvider } from './state/CloudContext';

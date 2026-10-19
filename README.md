@@ -5,8 +5,12 @@ progression ladder (wall push-up → incline → knee → push-up → …). Ladd
 trees: the bar muscle-up needs chest-to-bar pull-ups (Pull) **and** straight-bar dips (Push), and the front
 lever needs pull-ups **and** a hollow body hold (Core).
 
-- **8 trees, 35 progressions, 124 exercises:** Push, Pull, Core, Legs, Handstand, Planche, Levers (front, back
+- **8 trees, 40 progressions, 129 exercises:** Push, Pull, Core, Legs, Handstand, Planche, Levers (front, back
   and human flag) and Muscle-up.
+- **Weighted progressions:** weighted push-ups, dips, pull-ups, chin-ups and Bulgarian split squats. You log the
+  added weight with each session, and the plan adds the smallest plate (5 lb or 2.5 kg) each time you complete
+  it, past the mastery target if you keep going. They only join generated workouts once you've logged one, so
+  nobody without weights gets them by surprise.
 - **Start anywhere:** the *starting point* screen lets you pick the hardest step you can do in each
   progression. Everything before it, including prerequisites in other trees, is marked mastered.
   Locks are soft, so you can train or master any skill at any time.
@@ -41,10 +45,34 @@ lever needs pull-ups **and** a hollow body hold (Core).
 
   Press *Start workout* to tick off drills and log each exercise with one tap ("Done as planned"), or enter
   different numbers. The started workout stays fixed for the day, even across reloads.
-- **Suggested training day:** Home recommends the most-rested split you can train (skipping areas trained
-  in the last day). The Workout page also suggests weekly schedules for 2–5 days a week.
-- **Goals:** pick up to 5. Their full path is highlighted in gold, and *Today's session* prioritises it.
-- **Today's session:** one unlocked exercise per movement pattern, goal paths first.
+- **Workout plan (Home):** choose the areas you're training (e.g. Push + Pull + Core, or Push + Handstand)
+  and a workout length, and save it. You can adjust it any time. Every day Home shows that day's workout from
+  your plan, with time and calories, and starts it in one tap. After you train, it says "Great Job!" with the
+  calories burned, time taken, exercises and reps. Without a plan, Home helps you set one up.
+- **Skill cards (Home):** a grid of square photo cards, one per area, showing how far along the path to its
+  ultimate skill you are (e.g. One-arm Push-up, Full Planche), how much of the tree you've mastered, and
+  your next step. Tap a card to open that tree.
+- **Suggested training day:** the Workout page recommends the most-rested split you can train (skipping
+  areas trained in the last day), and suggests weekly schedules for 2–5 days a week.
+- **Streak:** Home shows your current streak and the last seven days. Rest days don't break it; three in a
+  row do. A live countdown shows when the streak ends without a workout (midnight after your last allowed
+  day). It turns gold the day before and red on the last day, when Home says a workout is needed and the app
+  reminds you as you open it. Turn on **Streak reminders** in Settings to also get browser notifications at
+  6 PM and 10 PM on that last day. These need Ascent open in a tab (it can be in the background), since a web
+  app without a server can't wake itself up.
+- **History:** a calendar of the days you trained. Tap a day to see each workout, every set, an estimated
+  calorie burn and that day's weigh-in. It also shows your best streak and this month's totals.
+- **Calories:** every workout shows an estimate before you start, a running total while you train, and
+  saves the estimate when you finish. It uses standard MET values and your logged body weight.
+- **Body weight:** log your weight, set a goal and follow a progress bar toward it. Choose lb or kg in
+  Settings.
+- **Weight fluctuation (History):** a chart of every weigh-in with a 7-day average trend line and your goal,
+  plus bars showing how much your weight changed between weigh-ins. Pick 30 days, 3 months, 1 year or all
+  time. It also shows the overall change, low and high, typical swing and biggest swing, with a table view.
+- **Rep growth (History):** see how your reps, hold times or added weight have moved on recently trained
+  exercises.
+- **Goals:** pick up to 5 from any skill's details. Their full path is highlighted in gold, and generated
+  workouts prioritise it.
 - **Google sign-in, saved to your own Google Drive (optional):** progress goes to
   `My Drive/Ascent/`, with a readable file per training day in `Ascent/workouts/`, so you can use it on
   any device. It also stays in the browser, so the app works offline and without an account. See
@@ -82,8 +110,9 @@ My Drive/
       2026-10-18 Push + Pull.json       …named after that day's workout
 ```
 
-Each day file is readable JSON: the workout(s) you started and every set you logged (exercise name, sets,
-reps or seconds, and what was planned). Files are tracked by hidden app properties, so renaming or moving
+Each day file is readable JSON: the workout(s) you started (with the calorie estimate once finished), every
+set you logged (exercise name, sets, reps or seconds, any added weight, and what was planned) and that day's
+weigh-in. Weights are in kg. Files are tracked by hidden app properties, so renaming or moving
 them in Drive is fine. Edits you make to them are picked up on the next sync. Days you delete in the app
 go to the Drive trash.
 
@@ -154,6 +183,9 @@ src/
     graph.ts          Status (mastered/ready/locked), ancestors, goal paths, session suggestions
     progression.ts    Next-session prescriptions from your logged history
     workout.ts        Daily workout generator and suggested training day
+    history.ts        Per-day summaries, streaks, rep growth, body-weight goal progress
+    calories.ts       Calorie estimates (MET values × body weight × time)
+    units.ts          lb/kg conversion and plate rounding (weights are stored in kg)
     layout.ts         dagre layout for the map (plus "ghost" nodes for prerequisites in other trees)
     router.ts         Tiny hash router
   cloud/
@@ -168,7 +200,7 @@ src/
     ProgressContext   React context + localStorage persistence (synced across tabs)
     CloudContext      Account state, sync status, sign in/out
   components/         SkillMap (React Flow), SkillNode, SkillList, SkillDetail, nav, toast…
-  pages/              Train, Trees, Starting point, Settings
+  pages/              Train, Workout, History, Trees, Starting point, Settings
   styles/             Plain CSS with design tokens in base.css
 ```
 
@@ -221,3 +253,21 @@ exercise needs a video entry, or `npm test` will fail.
 
 React 19, TypeScript, Vite, Google Identity Services + the Google Drive API for accounts, [React Flow](https://reactflow.dev) (`@xyflow/react`) for the map,
 [dagre](https://github.com/dagrejs/dagre) for automatic layout, lucide icons, and Vitest.
+
+## Photo credits
+
+The Home skill-card photos (`src/assets/trees/`, 640 × 640 crops) are from [Unsplash](https://unsplash.com),
+free to use under the [Unsplash License](https://unsplash.com/license):
+
+| Card | Photographer | Photo |
+| --- | --- | --- |
+| Push | Connor Bowden | [unsplash.com/photos/KgWaohVS-mc](https://unsplash.com/photos/KgWaohVS-mc) |
+| Pull | Shoham Avisrur | [unsplash.com/photos/3HnxyD3J1Qg](https://unsplash.com/photos/3HnxyD3J1Qg) |
+| Core | Stan Georgiev | [unsplash.com/photos/2OgqFKHwF5Q](https://unsplash.com/photos/2OgqFKHwF5Q) |
+| Legs | Nikola Murniece | [unsplash.com/photos/-pNl3iYMsdI](https://unsplash.com/photos/-pNl3iYMsdI) |
+| Handstand | Tyler Zhang | [unsplash.com/photos/Ni-lM0S0BxQ](https://unsplash.com/photos/Ni-lM0S0BxQ) |
+| Planche | GMB Fitness | [unsplash.com/photos/NYCVycvTbek](https://unsplash.com/photos/NYCVycvTbek) |
+| Levers | Karsten Winegeart | [unsplash.com/photos/GYktdLWpxx4](https://unsplash.com/photos/GYktdLWpxx4) |
+| Muscle-up | Charan S | [unsplash.com/photos/pQ8Ltw-MFWE](https://unsplash.com/photos/pQ8Ltw-MFWE) |
+
+To swap one, replace the file in `src/assets/trees/` (a square WebP works best) and update this table.

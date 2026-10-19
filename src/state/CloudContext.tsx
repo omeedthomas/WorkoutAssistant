@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { cloudConfigured, describeCloudError, getBackend, type CloudBackend, type CloudUser, type SyncStatus } from '../cloud';
 import { localMetaStore, SyncEngine, type ReconcileResult } from '../cloud/syncEngine';
 import { useToast } from '../components/Toast';
+import { clearActiveWorkout } from './activeWorkout';
 import { initialProgress } from './progress';
 import { useProgress } from './ProgressContext';
 
@@ -189,6 +190,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     localMetaStore.clear();
     // The device copy belongs to the account; clear it so the next person starts fresh.
     progressRef.current.importState({ ...initialProgress, onboarded: false });
+    clearActiveWorkout();
     setLastSyncedAt(null);
     toast('Signed out', 'Your progress is saved in your Google Drive. Sign in again to pick up where you left off.');
   }, [backend, status, toast]);

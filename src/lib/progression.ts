@@ -1,13 +1,15 @@
 import { dependentsOf, exerciseById, trackByKey, type Exercise } from '../data';
-import type { LogEntry } from '../state/progress';
+import type { LogEntry, Work } from '../state/progress';
 import { formatSet } from './format';
+import { formatAdded, formatWeight, loadStepKg, snapLoad, type Units } from './units';
 
 /**
  * Turns an exercise's logged history into a prescription for the next session
  * ("double progression"): first build up to the target number of sets, then
  * add reps (or seconds) each time you complete the plan, until you reach the
  * mastery target. Missed plans are repeated; repeated misses switch to an
- * extra-volume session to break the plateau.
+ * extra-volume session to break the plateau. Weighted exercises progress by
+ * load instead (see planWeighted).
  */
 
 export type PlanKind =
@@ -26,6 +28,8 @@ export interface SessionPlan {
   sets: number;
   /** Reps (or seconds) per set. */
   value: number;
+  /** Weighted exercises: added weight in kg. */
+  addedKg?: number;
   headline: string;
   reason: string;
   tip?: string;
@@ -34,7 +38,7 @@ export interface SessionPlan {
   sessionsToMastery: number;
 }
 
-type SetsValue = Pick<LogEntry, 'sets' | 'value'>;
+type SetsValue = Work;
 
 const DAY = 86_400_000;
 export const RETURN_AFTER_DAYS = 14;
@@ -58,11 +62,19 @@ export function restFor(ex: Exercise): string {
   return '2–3 min';
 }
 
-const meets = (done: SetsValue, goal: SetsValue) => done.sets >= goal.sets && done.value >= goal.value;
-const same = (a: SetsValue, b: SetsValue) => a.sets === b.sets && a.value === b.value;
+const added = (w: SetsValue) => w.addedKg ?? 0;
+const meets = (done: SetsValue, goal: SetsValue) =>
+  done.sets >= goal.sets && done.value >= goal.value && added(done) >= added(goal) - 0.01;
+const same = (a: SetsValue, b: SetsValue) =>
+  a.sets === b.sets && a.value === b.value && Math.abs(added(a) - added(b)) < 0.01;
 
-export function sessionsToMastery(ex: Exercise, plan: SetsValue): number {
-  const { sets, value } = ex.target;
+export function sessionsToMastery(ex: Exercise, plan: SetsValue, units: Units = 'kg'): number {
+  const { sets, value, addedKg } = ex.target;
+  if (addedKg !== undefined) {
+    const goal = snapLoad(addedKg, units, 'up');
+    if (meets(plan, { sets, value, addedKg: goal })) return 1;
+    return 1 + Math.max(0, sets - plan.sets) + Math.max(0, Math.ceil((goal - added(plan)) / loadStepKg(units) - 0.01));
+  }
   if (meets(plan, ex.target)) return 1;
   return 1 + Math.max(0, sets - plan.sets) + Math.max(0, Math.ceil((value - plan.value) / stepFor(ex)));
 }
@@ -80,11 +92,19 @@ function unitWord(ex: Exercise, n: number): string {
   return n === 1 ? 'rep' : 'reps';
 }
 
+interface PlanOptions {
+  mastered?: boolean;
+  now?: Date;
+  /** Weighted exercises add weight in steps of 5 lb or 2.5 kg. */
+  units?: Units;
+}
+
 export function planSession(
   ex: Exercise,
   logs: LogEntry[] = [],
-  { mastered = false, now = new Date() }: { mastered?: boolean; now?: Date } = {},
+  { mastered = false, now = new Date(), units = 'kg' }: PlanOptions = {},
 ): SessionPlan {
+  if (ex.target.addedKg !== undefined) return planWeighted(ex, logs, { mastered, now, units });
   const target = ex.target;
   const step = stepFor(ex);
   const each = target.perSide ? ' each side' : '';
@@ -211,6 +231,126 @@ export function planSession(
       ? `You've done ${fmt(last)} for ${streak} sessions in a row, so it's time to push: aim for ${plan.value} ${unitWord(ex, plan.value)} per set, even if the last set is a grind.`
       : `You hit ${fmt(last)} last time. Go for ${step} more ${unitWord(ex, step)} per set.`;
   return make('progress', plan, `Level up: ${fmt(plan)}`, reason);
+}
+
+/**
+ * Weighted exercises hold the target reps and add the smallest plate (5 lb or
+ * 2.5 kg) each time you complete the plan. It's open-ended: once mastered, the
+ * plan keeps adding weight while sessions go to plan.
+ */
+function planWeighted(ex: Exercise, logs: LogEntry[], { mastered, now, units }: Required<PlanOptions>): SessionPlan {
+  const target = ex.target;
+  const step = loadStepKg(units);
+  const goalKg = snapLoad(target.addedKg ?? 0, units, 'up');
+  const each = target.perSide ? ' each side' : '';
+  const fmt = (p: SetsValue) => `${formatSet(p.sets, p.value, target.unit)}${each} at ${formatAdded(added(p), units)}`;
+  const plate = formatWeight(step, units);
+  const next = trackNeighbour(ex, 1);
+  const last = logs[0];
+
+  /** Target reps at `kg`, rounded to what you can load. */
+  const at = (kg: number, sets = target.sets): SetsValue => ({ sets, value: target.value, addedKg: snapLoad(kg, units) });
+  const make = (kind: PlanKind, plan: SetsValue, headline: string, reason: string, tip?: string): SessionPlan => ({
+    kind,
+    sets: plan.sets,
+    value: plan.value,
+    addedKg: added(plan),
+    headline,
+    reason,
+    tip,
+    rest: restFor(ex),
+    sessionsToMastery: sessionsToMastery(ex, plan, units),
+  });
+
+  if (mastered) {
+    if (last?.planned && meets(last, last.planned) && added(last) >= goalKg - 0.01) {
+      const plan = at(added(last) + step);
+      return make('progress', plan, `Add weight: ${fmt(plan)}`, `You did ${fmt(last)} as planned. Keep going past the target: ${plate} more.`);
+    }
+    const plan = at(Math.max(goalKg, last ? added(last) : 0));
+    return make(
+      'maintain',
+      plan,
+      `Maintain ${fmt(plan)}`,
+      `You've mastered this. Keep it in your week and add ${plate} whenever the plan feels easy.`,
+    );
+  }
+
+  if (!last) {
+    const plan = at(step);
+    return make(
+      'start',
+      plan,
+      `Start with ${fmt(plan)}`,
+      `Start light to get used to moving with weight. Each time you complete the plan, add ${plate}.`,
+      'No belt or vest? A backpack with books or water bottles works.',
+    );
+  }
+
+  if (meets(last, { sets: target.sets, value: target.value, addedKg: target.addedKg })) {
+    return make(
+      'mastery',
+      at(goalKg),
+      'Mastery target reached',
+      `You did ${fmt(last)}, which meets the ${fmt(at(goalKg))} target. Mark it mastered${next ? ` and start ${next.name}` : ''}.`,
+    );
+  }
+
+  const daysAway = Math.floor((now.getTime() - Date.parse(last.date)) / DAY);
+  if (daysAway >= RETURN_AFTER_DAYS) {
+    const plan = at(added(last) - 2 * step, Math.min(target.sets, last.sets));
+    return make(
+      'return',
+      plan,
+      `Ease back in: ${fmt(plan)}`,
+      `It's been ${daysAway} days since your last session (${fmt(last)}). Start a little lighter and build back up.`,
+    );
+  }
+
+  const planned = last.planned;
+  if (planned && logs.length > 1 && !meets(last, planned)) {
+    // Used less weight than planned, or fell well short on reps: drop the weight.
+    if (added(last) < added(planned) - 0.01 || last.value < planned.value - 2) {
+      const plan = at(Math.min(added(last), added(planned) - step), Math.max(last.sets, Math.min(target.sets, planned.sets)));
+      return make(
+        'reset',
+        plan,
+        `Lighten to ${fmt(plan)}`,
+        `${fmt(last)} was well short of the planned ${fmt(planned)}, so the plan drops the weight and builds back up.`,
+      );
+    }
+
+    let misses = 0;
+    for (const l of logs) {
+      if (l.planned && same(l.planned, planned) && !meets(l, l.planned)) misses++;
+      else break;
+    }
+
+    if (misses >= PLATEAU_MISSES) {
+      const plan = at(added(planned) - step, Math.max(planned.sets, target.sets) + 1);
+      return make(
+        'consolidate',
+        plan,
+        `Break the plateau: ${fmt(plan)}`,
+        `${fmt(planned)} has beaten you ${misses} sessions in a row. Do one session with an extra set, ${plate} lighter. The added volume builds the strength to break through.`,
+      );
+    }
+
+    return make('repeat', planned, `Go again: ${fmt(planned)}`, `You got ${fmt(last)} of the planned ${fmt(planned)}. Same weight today.`);
+  }
+
+  if (last.sets < target.sets) {
+    const plan = at(added(last), last.sets + 1);
+    return make('add-set', plan, `Add a set: ${fmt(plan)}`, `You did ${fmt(last)}. Add one more set at the same weight before going heavier.`);
+  }
+
+  if (last.value < target.value) {
+    const plan = at(added(last));
+    return make('repeat', plan, `Go again: ${fmt(plan)}`, `You did ${fmt(last)}. Get all ${target.value} reps at this weight, then add more.`);
+  }
+
+  const plan = at(Math.min(goalKg, added(last) + step));
+  return make('progress', plan, `Add weight: ${fmt(plan)}`, `You hit ${fmt(last)}. Add ${plate} and keep the same reps.`);
 }
 
 /** Whether a plan raises the bar compared with the last session. */

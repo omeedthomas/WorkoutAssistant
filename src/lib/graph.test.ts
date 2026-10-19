@@ -91,4 +91,12 @@ describe('targets', () => {
     expect(meetsTarget(pushup, { sets: 3, value: 12 })).toBe(true);
     expect(meetsTarget(pushup, { sets: 2, value: 12 })).toBe(false);
   });
+
+  it('needs the added weight on weighted exercises', () => {
+    const pull = exerciseById['weighted-pullup']; // 3 × 5 at +20 kg
+    expect(meetsTarget(pull, { sets: 3, value: 5 })).toBe(false);
+    expect(meetsTarget(pull, { sets: 3, value: 5, addedKg: 20 })).toBe(true);
+    expect(meetsTarget(pull, { sets: 3, value: 5, addedKg: 19.995 })).toBe(true); // rounding from lb
+    expect(logScore(pull, { sets: 3, value: 5, addedKg: 10 })).toBeCloseTo(0.5);
+  });
 });

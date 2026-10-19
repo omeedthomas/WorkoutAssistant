@@ -60,6 +60,14 @@ export function sortFocus(focus: TreeId[]): TreeId[] {
   return [...new Set(focus)].sort((a, b) => order.indexOf(a) - order.indexOf(b));
 }
 
+export const sameFocus = (a: TreeId[], b: TreeId[]) => a.length === b.length && a.every((t) => b.includes(t));
+
+/** "Push + Pull" (a named training day), or the trees joined: "Push + Handstand". */
+export function focusTitle(focus: TreeId[]): string {
+  const split = splits.find((s) => sameFocus(s.focus, focus));
+  return split ? split.name : focus.map((t) => treeById[t].name).join(' + ');
+}
+
 function restSeconds(ex: Exercise): number {
   if (ex.level <= 2) return 75;
   if (ex.level <= 5) return 105;
@@ -79,7 +87,10 @@ interface Candidate {
 
 function candidatesFor(tree: TreeId, state: ProgressState, goalOf: Map<string, string>): { list: Candidate[]; note?: string } {
   const { mastered, logs } = state;
-  const score = (e: Exercise) => (goalOf.has(e.id) ? 100 : 0) + (logs[e.id]?.length ? 20 : 0) + e.level * 2;
+  // Weighted exercises need equipment, so they only join workouts once you've logged one (or made it a goal).
+  const needsWeights = (e: Exercise) => e.target.addedKg !== undefined && !logs[e.id]?.length && !goalOf.has(e.id);
+  const score = (e: Exercise) =>
+    (goalOf.has(e.id) ? 100 : 0) + (logs[e.id]?.length ? 20 : 0) + e.level * 2 - (needsWeights(e) ? 50 : 0);
   const why = (e: Exercise) => {
     const goal = goalOf.get(e.id);
     if (goal) return goal === e.id ? 'Your goal' : `Toward ${exerciseById[goal].name}`;
@@ -211,7 +222,7 @@ export function generateWorkout(
     const ex = candidate.exercise;
     return {
       exercise: ex,
-      plan: planSession(ex, state.logs[ex.id], { mastered: !!state.mastered[ex.id], now }),
+      plan: planSession(ex, state.logs[ex.id], { mastered: !!state.mastered[ex.id], now, units: state.units }),
       block: BLOCK_OF[ex.tree],
       why: candidate.why,
       focus: t,

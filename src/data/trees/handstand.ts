@@ -6,6 +6,7 @@ export const handstand: TreeDef = {
   name: 'Handstand',
   tagline: 'Balance upside down, then press it: wall work to freestanding handstand push-ups.',
   color: '#ae3ec9',
+  ultimate: 'freestanding-hspu',
   tracks: [
     {
       id: 'balance',

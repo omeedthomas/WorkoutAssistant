@@ -61,6 +61,38 @@ describe('helpers', () => {
     expect(isPristine({ ...initialProgress, onboarded: true })).toBe(true);
     expect(isPristine(state({ goals: ['pushup'] }))).toBe(false);
     expect(isPristine(state({ workouts: { '2026-10-18': [workout('t')] } }))).toBe(false);
+    expect(isPristine(state({ weight: { '2026-10-18': { kg: 80, at: 't' } } }))).toBe(false);
+    expect(isPristine(state({ units: 'kg' }))).toBe(true);
+  });
+
+  it('keeps the latest weigh-in per day and the latest goal', () => {
+    const local = state({
+      weight: { '2026-10-17': { kg: 80, at: '2026-10-17T07:00' }, '2026-10-18': { kg: 79.6, at: '2026-10-18T08:00' } },
+      weightGoal: { kg: 75, at: '2026-10-10' },
+      units: 'kg',
+    });
+    const remote = state({
+      weight: { '2026-10-18': { kg: 79.9, at: '2026-10-18T07:00' }, '2026-10-16': { kg: 80.4, at: '2026-10-16T07:00' } },
+      weightGoal: { kg: 76, at: '2026-10-12' },
+    });
+    const merged = mergeProgress(local, remote);
+    expect(merged.weight).toEqual({
+      '2026-10-16': { kg: 80.4, at: '2026-10-16T07:00' },
+      '2026-10-17': { kg: 80, at: '2026-10-17T07:00' },
+      '2026-10-18': { kg: 79.6, at: '2026-10-18T08:00' },
+    });
+    expect(merged.weightGoal).toEqual({ kg: 76, at: '2026-10-12' });
+    expect(merged.units).toBe('kg');
+    expect(mergeProgress(state({}), remote).weightGoal).toEqual(remote.weightGoal);
+  });
+
+  it('keeps the most recently saved workout plan', () => {
+    const older = { focus: ['push' as const], length: 'short' as const, at: '2026-10-01' };
+    const newer = { focus: ['pull' as const, 'core' as const], length: 'long' as const, at: '2026-10-05' };
+    expect(mergeProgress(state({ workoutPlan: older }), state({ workoutPlan: newer })).workoutPlan).toEqual(newer);
+    expect(mergeProgress(state({ workoutPlan: newer }), state({ workoutPlan: older })).workoutPlan).toEqual(newer);
+    expect(mergeProgress(state({}), state({ workoutPlan: older })).workoutPlan).toEqual(older);
+    expect(isPristine(state({ workoutPlan: older }))).toBe(false);
   });
 
   it('compares progress regardless of key order', () => {

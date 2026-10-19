@@ -7,16 +7,17 @@ interface ToastMessage {
   body?: string;
 }
 
-const ToastContext = createContext<(title: string, body?: string) => void>(() => {});
+/** Shows a toast; important ones can stay up longer than the default 4 s. */
+const ToastContext = createContext<(title: string, body?: string, ms?: number) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const show = useCallback((title: string, body?: string) => {
+  const show = useCallback((title: string, body?: string, ms = 4000) => {
     window.clearTimeout(timer.current);
     setToast({ id: Date.now(), title, body });
-    timer.current = window.setTimeout(() => setToast(null), 4000);
+    timer.current = window.setTimeout(() => setToast(null), ms);
   }, []);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);

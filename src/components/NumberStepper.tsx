@@ -17,6 +17,8 @@ export function NumberStepper({ label, value, onChange, step = 1, min = 1, max =
   useEffect(() => setText(String(value)), [value]);
 
   const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  // Weights can step by 2.5, so allow decimals when the step isn't a whole number.
+  const decimal = !Number.isInteger(step);
 
   return (
     <div className="stepper">
@@ -36,13 +38,14 @@ export function NumberStepper({ label, value, onChange, step = 1, min = 1, max =
         <input
           id={id}
           type="number"
-          inputMode="numeric"
+          inputMode={decimal ? 'decimal' : 'numeric'}
+          step="any"
           min={min}
           max={max}
           value={text}
           onChange={(e) => {
             setText(e.target.value);
-            const n = Number.parseInt(e.target.value, 10);
+            const n = decimal ? Number.parseFloat(e.target.value) : Number.parseInt(e.target.value, 10);
             if (Number.isFinite(n)) onChange(clamp(n));
           }}
           onBlur={() => setText(String(value))}

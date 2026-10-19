@@ -21,3 +21,19 @@ export const holdEach = (sets: number, seconds: number): Target => ({
   unit: 'seconds',
   perSide: true,
 });
+
+/** Reps with added weight (a belt, vest, backpack or dumbbells), in kg. */
+export const weighted = (sets: number, value: number, addedKg: number): Target => ({
+  sets,
+  value,
+  unit: 'reps',
+  addedKg,
+});
+
+export const weightedEach = (sets: number, value: number, addedKg: number): Target => ({
+  sets,
+  value,
+  unit: 'reps',
+  perSide: true,
+  addedKg,
+});

@@ -6,6 +6,7 @@ export const planche: TreeDef = {
   name: 'Planche',
   tagline: 'Straight-arm pushing strength, from the lean to the full planche.',
   color: '#e8590c',
+  ultimate: 'full-planche',
   tracks: [
     {
       id: 'frog',

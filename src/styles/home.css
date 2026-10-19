@@ -1,0 +1,377 @@
+/* ---------- Home ---------- */
+
+.home > .card,
+.home > .stat-row {
+  margin-bottom: 16px;
+}
+
+.home-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.home-section__head h2 {
+  font-size: 1.05rem;
+}
+
+/* ---------- Today's workout widget ---------- */
+
+.today-card {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+
+.today-card .today-card__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+}
+
+.today-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.today-card__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.today-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.today-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--tree);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.today-list a:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--tree);
+}
+
+.today-list__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.today-list__plan {
+  color: var(--text-2);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.today-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding-top: 4px;
+}
+
+.today-card--done {
+  border-color: color-mix(in srgb, var(--gold) 40%, var(--border));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 50%),
+    var(--surface);
+}
+
+.today-card__done {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.today-card__badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+}
+
+.today-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.today-stats > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.today-stats dt {
+  color: var(--text-2);
+  font-size: 0.78rem;
+}
+
+.today-stats dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.today-stats dd span {
+  color: var(--text-3);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+@media (max-width: 560px) {
+  .today-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.plan-editor .chip .split-btn__dots {
+  margin-right: 2px;
+}
+
+.plan-editor .segmented {
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+/* ---------- Skill cards: square photo tiles ---------- */
+
+.skill-section {
+  display: grid;
+  gap: 10px;
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1000px) {
+  .skill-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .skill-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+.tree-card {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--tree) 35%, #000);
+  color: #fff;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tree-card:hover {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+.tree-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.tree-card__photo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.tree-card:hover .tree-card__photo {
+  transform: scale(1.05);
+}
+
+/* Darken the top (badges) and most of the bottom (text) so white text always reads over the photo. */
+.tree-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0) 26%,
+    rgba(0, 0, 0, 0.15) 42%,
+    rgba(0, 0, 0, 0.72) 68%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+}
+
+.tree-card__badges {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tree-card__badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  font-size: 0.7rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-card__badges .tree-card__badge:last-child {
+  margin-left: auto;
+}
+
+.tree-card__badge--plan {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.tree-card__body {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+}
+
+.tree-card__name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.tree-card__goal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tree-card__meter {
+  height: 5px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.tree-card__meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tree);
+}
+
+.tree-card__steps {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-card__next {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.74rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tree-card__next strong {
+  color: #fff;
+}
+
+.tree-card.is-done {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.tree-card.is-done .tree-card__goal svg {
+  color: var(--gold);
+}
+
+@media (max-width: 640px) {
+  .tree-card {
+    border-radius: 16px;
+  }
+
+  .tree-card__body {
+    padding: 11px;
+  }
+
+  .tree-card__name {
+    font-size: 1.1rem;
+  }
+
+  /* Keep both badges on one line on narrow cards. */
+  .tree-card__badge-word {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-card,
+  .tree-card__photo {
+    transition: none;
+  }
+
+  .tree-card:hover,
+  .tree-card:hover .tree-card__photo {
+    transform: none;
+  }
+}

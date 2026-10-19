@@ -1,6 +1,7 @@
 import { ArrowUp, Clock, Flag, Lightbulb, RotateCcw } from 'lucide-react';
 import type { Exercise } from '../data';
 import { isLevelUp, type PlanKind, type SessionPlan } from '../lib/progression';
+import { formatAdded, type Units } from '../lib/units';
 
 export const planKindLabel: Record<PlanKind, string> = {
   start: 'Starting point',
@@ -19,10 +20,12 @@ interface Props {
   plan: SessionPlan;
   /** "Today's plan", or "Next session" once today's is logged. */
   title: string;
+  units: Units;
 }
 
-export function SessionPlanCard({ ex, plan, title }: Props) {
+export function SessionPlanCard({ ex, plan, title, units }: Props) {
   const unit = ex.target.unit === 'seconds' ? 's' : ex.target.value === 1 ? ' rep' : ' reps';
+  const load = plan.addedKg !== undefined ? formatAdded(plan.addedKg, units) : null;
   const each = ex.target.perSide ? ' each side' : '';
   const KindIcon = isLevelUp(plan) ? ArrowUp : plan.kind === 'repeat' || plan.kind === 'reset' ? RotateCcw : Flag;
 
@@ -42,6 +45,7 @@ export function SessionPlanCard({ ex, plan, title }: Props) {
               {plan.value}
               {unit}
             </span>
+            {load && <span className="plan-sets__load">{load}</span>}
           </li>
         ))}
       </ol>

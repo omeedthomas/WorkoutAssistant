@@ -4,6 +4,7 @@ import { Star } from 'lucide-react';
 import { exerciseById, treeById } from '../data';
 import { formatTarget } from '../lib/format';
 import type { Status } from '../lib/graph';
+import type { Units } from '../lib/units';
 import { StatusIcon } from './StatusIcon';
 
 export type SkillNodeData = {
@@ -17,6 +18,7 @@ export type SkillNodeData = {
   /** 0–1 progress toward the target from the best logged session. */
   progress: number;
   hasLogs: boolean;
+  units: Units;
 };
 
 export type SkillFlowNode = Node<SkillNodeData, 'skill'>;
@@ -55,7 +57,7 @@ function SkillNodeView({ data }: NodeProps<SkillFlowNode>) {
             </span>
           </span>
           <span className="skill-node__name">{ex.name}</span>
-          <span className="skill-node__target">{formatTarget(ex.target, { short: true })}</span>
+          <span className="skill-node__target">{formatTarget(ex.target, { short: true, units: data.units })}</span>
           {data.hasLogs && data.status !== 'mastered' && (
             <span className="skill-node__bar" aria-hidden>
               <span style={{ width: `${Math.round(data.progress * 100)}%` }} />

@@ -85,7 +85,7 @@ function TrackCard({ track, view, selected }: { track: Track; view: TreeView; se
                     </span>
                   )}
                 </span>
-                <span className="track-step__target">{formatTarget(step.target, { short: true })}</span>
+                <span className="track-step__target">{formatTarget(step.target, { short: true, units: state.units })}</span>
               </a>
             </li>
           );

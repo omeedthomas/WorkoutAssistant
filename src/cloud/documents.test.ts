@@ -42,6 +42,30 @@ describe('toDocs', () => {
     expect(sanitizeProgress(fromDocs(toDocs(pushDay)))).toEqual(pushDay);
   });
 
+  it('carries added weight, weigh-ins, the weight goal, units and workout calories', () => {
+    const s: ProgressState = {
+      ...pushDay,
+      logs: {
+        ...pushDay.logs,
+        'weighted-dip': [
+          { id: 'w1', date: '2026-10-18T18:50:00.000Z', day: '2026-10-18', sets: 3, value: 6, addedKg: 10, planned: { sets: 3, value: 6, addedKg: 10 } },
+        ],
+      },
+      workouts: { '2026-10-18': [{ ...pushDay.workouts['2026-10-18'][0], finishedAt: '2026-10-18T19:00:00.000Z', kcal: 250 }] },
+      weight: { '2026-10-18': { kg: 80.2, at: '2026-10-18T07:00:00.000Z' }, '2026-10-20': { kg: 80, at: '2026-10-20T07:00:00.000Z' } },
+      weightGoal: { kg: 76, at: '2026-10-01T00:00:00.000Z' },
+      units: 'kg',
+      workoutPlan: { focus: ['push', 'handstand'], length: 'long', at: '2026-10-02T00:00:00.000Z' },
+    };
+    const docs = toDocs(s);
+    expect(docs.progress).toMatchObject({ workoutPlan: s.workoutPlan });
+    expect((docs['day:2026-10-18'] as DayDoc).weight).toEqual(s.weight['2026-10-18']);
+    expect((docs['day:2026-10-18'] as DayDoc).sessions.find((x) => x.id === 'w1')).toMatchObject({ addedKg: 10 });
+    expect((docs['day:2026-10-20'] as DayDoc).title).toBe('Weigh-in');
+    expect(docs.progress).toMatchObject({ weightGoal: s.weightGoal, units: 'kg' });
+    expect(sanitizeProgress(fromDocs(docs))).toEqual(s);
+  });
+
   it('files sessions under the day they were logged even without a stored day', () => {
     const noDay: ProgressState = {
       ...initialProgress,

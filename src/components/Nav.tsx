@@ -1,4 +1,4 @@
-import { Dumbbell, House, Network, Settings } from 'lucide-react';
+import { CalendarDays, Dumbbell, House, Network, Settings } from 'lucide-react';
 import { exercises } from '../data';
 import { lastTreeHref, type Route } from '../lib/router';
 import { useProgress } from '../state/ProgressContext';
@@ -7,6 +7,7 @@ import { AccountButton } from './Account';
 const items = [
   { name: 'train', label: 'Home', href: () => '#/train', Icon: House },
   { name: 'workout', label: 'Workout', href: () => '#/workout', Icon: Dumbbell },
+  { name: 'history', label: 'History', href: () => '#/history', Icon: CalendarDays },
   { name: 'trees', label: 'Skill trees', href: lastTreeHref, Icon: Network },
   { name: 'settings', label: 'Settings', href: () => '#/settings', Icon: Settings },
 ] as const;

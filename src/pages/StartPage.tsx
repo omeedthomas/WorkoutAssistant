@@ -24,10 +24,20 @@ export function StartPage() {
   const toast = useToast();
 
   // Snapshot on mount so later edits are compared against where the user began.
-  const [initial] = useState(() =>
-    Object.fromEntries(tracks.map((t) => [t.key, hardestMastered(t, state.mastered)])),
-  );
+  const snapshot = () => Object.fromEntries(tracks.map((t) => [t.key, hardestMastered(t, state.mastered)]));
+  const [initial, setInitial] = useState(snapshot);
   const [selection, setSelection] = useState<Record<string, number>>(initial);
+
+  // Progress replaced while this page is open (signing in, a sync from another device): start over
+  // from it, otherwise saving would compare against the old snapshot and could unmaster synced skills.
+  const masteredKey = useMemo(() => Object.keys(state.mastered).sort().join(), [state.mastered]);
+  const [snapshotKey, setSnapshotKey] = useState(masteredKey);
+  if (snapshotKey !== masteredKey) {
+    const next = snapshot();
+    setSnapshotKey(masteredKey);
+    setInitial(next);
+    setSelection(next);
+  }
 
   const plan = useMemo(() => {
     const chosen: string[] = [];
@@ -105,7 +115,7 @@ export function StartPage() {
                       >
                         {(chosen || included) && <Check size={13} aria-hidden />}
                         <span>{step.name}</span>
-                        <span className="option__target">{formatTarget(step.target, { short: true })}</span>
+                        <span className="option__target">{formatTarget(step.target, { short: true, units: state.units })}</span>
                       </button>
                     );
                   })}

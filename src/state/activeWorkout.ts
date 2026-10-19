@@ -13,11 +13,13 @@ export interface ActiveExercise {
   exerciseId: string;
   sets: number;
   value: number;
+  /** Weighted exercises: planned added weight in kg. */
+  addedKg?: number;
   kind: PlanKind;
   reason: string;
   why: string;
   block: Block;
-  logged?: { sets: number; value: number; logId: string };
+  logged?: { sets: number; value: number; addedKg?: number; logId: string };
 }
 
 export interface ActiveWorkout {
@@ -67,6 +69,7 @@ export function snapshot(w: Workout): ActiveWorkout {
       exerciseId: m.exercise.id,
       sets: m.plan.sets,
       value: m.plan.value,
+      ...(m.plan.addedKg !== undefined && { addedKg: m.plan.addedKg }),
       kind: m.plan.kind,
       reason: m.plan.reason,
       why: m.why,
@@ -86,6 +89,24 @@ export function workoutProgress(w: ActiveWorkout): { done: number; total: number
 /** Read-only peek for other pages (e.g. "Continue workout" on Home). */
 export function loadActiveWorkout(): ActiveWorkout | null {
   return load();
+}
+
+/** Starts a workout from outside the Workout page (e.g. Home); the Workout page picks it up when it opens. */
+export function saveActiveWorkout(w: ActiveWorkout) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(w));
+  } catch {
+    // storage unavailable: nothing to hand over
+  }
+}
+
+/** Forgets the started workout, e.g. on sign-out, since it belongs to that account. */
+export function clearActiveWorkout() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // storage unavailable: nothing was saved
+  }
 }
 
 export function useActiveWorkout() {

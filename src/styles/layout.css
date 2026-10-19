@@ -177,7 +177,7 @@
 
   .bottom-nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     flex: none;
     height: calc(var(--bottomnav-h) + var(--safe-bottom));
     padding-bottom: var(--safe-bottom);

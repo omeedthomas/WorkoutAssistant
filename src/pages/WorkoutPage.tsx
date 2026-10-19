@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { Check, Circle, CircleCheck, Clock, Lightbulb, Play, Sparkles, Undo2 } from 'lucide-react';
+import { Check, Circle, CircleCheck, ClipboardList, Clock, Flame, Lightbulb, Play, Sparkles, Undo2 } from 'lucide-react';
 import { NumberStepper } from '../components/NumberStepper';
 import { planKindLabel } from '../components/SessionPlanCard';
 import { useToast } from '../components/Toast';
 import { exerciseById, treeById, trees, type Exercise, type TreeId } from '../data';
 import { drillById, type Drill } from '../data/drills';
 import { splitById, splits, weeklyPlans, type Split } from '../data/splits';
-import { formatSet, pct } from '../lib/format';
+import { activeCalories, DEFAULT_BODY_KG, workoutCalories } from '../lib/calories';
+import { formatWork, pct } from '../lib/format';
 import { meetsTarget } from '../lib/graph';
+import { bodyWeightOn } from '../lib/history';
 import { restFor, type PlanKind } from '../lib/progression';
 import { navigate, skillHref, toHash } from '../lib/router';
-import { BLOCKS, generateWorkout, LENGTHS, sortFocus, suggestSplit, type Block, type WorkoutLength } from '../lib/workout';
+import { fromUnits, loadStepKg, toUnits } from '../lib/units';
+import { BLOCKS, focusTitle, generateWorkout, LENGTHS, sameFocus, sortFocus, suggestSplit, type Block, type WorkoutLength } from '../lib/workout';
 import { useActiveWorkout, workoutProgress, type ActiveExercise } from '../state/activeWorkout';
 import { useProgress } from '../state/ProgressContext';
 
@@ -30,12 +33,6 @@ function loadPrefs(): Partial<Prefs> {
   }
 }
 
-const sameSet = (a: TreeId[], b: TreeId[]) => a.length === b.length && a.every((t) => b.includes(t));
-
-export function focusTitle(focus: TreeId[]): string {
-  const split = splits.find((s) => sameSet(s.focus, focus));
-  return split ? split.name : focus.map((t) => treeById[t].name).join(' + ');
-}
 
 function scrollToTop() {
   document.querySelector('.app-main')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -46,6 +43,7 @@ interface MainItem {
   exercise: Exercise;
   sets: number;
   value: number;
+  addedKg?: number;
   kind: PlanKind;
   reason: string;
   why: string;
@@ -62,16 +60,17 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
     const stored = loadPrefs();
     const day = new Date().toDateString();
     const storedFocus = stored.day === day && stored.focus?.length ? stored.focus.filter((t) => t in treeById) : null;
-    return {
-      day,
-      focus: sortFocus(routeFocus ?? storedFocus ?? suggestion.split.focus),
-      length: stored.length && stored.length in LENGTHS ? stored.length : 'standard',
-    };
+    const plan = state.workoutPlan;
+    const focus = routeFocus ?? storedFocus ?? plan?.focus ?? suggestion.split.focus;
+    // Building your planned workout uses the plan's length; anything else keeps the last length you picked.
+    const length = plan && sameFocus(focus, plan.focus) ? plan.length : stored.length && stored.length in LENGTHS ? stored.length : 'standard';
+    return { day, focus: sortFocus(focus), length };
   });
+  const plan = state.workoutPlan;
 
   // Follow links like #/workout/legs,core from elsewhere in the app.
   useEffect(() => {
-    if (routeFocus) setPrefs((p) => (sameSet(routeFocus, p.focus) ? p : { ...p, focus: sortFocus(routeFocus) }));
+    if (routeFocus) setPrefs((p) => (sameFocus(routeFocus, p.focus) ? p : { ...p, focus: sortFocus(routeFocus) }));
   }, [routeFocus]);
 
   // Remember the choice for today and keep the URL shareable.
@@ -91,6 +90,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
     () => (prefs.focus.length ? generateWorkout(state, prefs.focus, prefs.length) : null),
     [state, prefs.focus, prefs.length],
   );
+  const bodyKg = bodyWeightOn(state);
 
   if (session.active) return <ActiveWorkoutView session={session} />;
 
@@ -116,12 +116,25 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
             <strong>Suggested: {suggestion.split.name}.</strong> {suggestion.reason}
           </span>
         </p>
+        {plan && (
+          <p className="builder__suggestion small">
+            <ClipboardList size={15} aria-hidden />
+            <span>
+              <strong>Your plan: {focusTitle(plan.focus)}</strong> ({LENGTHS[plan.length].minutes}).{' '}
+              {!(sameFocus(plan.focus, prefs.focus) && prefs.length === plan.length) && (
+                <button className="link-btn" onClick={() => setPrefs((p) => ({ ...p, focus: plan.focus, length: plan.length }))}>
+                  Use it
+                </button>
+              )}
+            </span>
+          </p>
+        )}
         <div className="split-grid" role="group" aria-label="Training days">
           {splits.map((s) => (
             <SplitButton
               key={s.id}
               split={s}
-              selected={sameSet(s.focus, prefs.focus)}
+              selected={sameFocus(s.focus, prefs.focus)}
               suggested={s.id === suggestion.split.id}
               onSelect={() => setFocus(s.focus)}
             />
@@ -165,6 +178,15 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
                 <Clock size={14} aria-hidden /> About {workout.minutes} min · {workout.warmup.length} warm-up drills ·{' '}
                 {workout.main.length} exercises · {workout.cooldown.length} cooldown stretches
               </p>
+              <p className="muted small" title={bodyKg ? undefined : 'Estimated for an average body weight. Log yours in History for a better estimate.'}>
+                <Flame size={14} aria-hidden /> About {workoutCalories(workout, bodyKg ?? DEFAULT_BODY_KG)} kcal
+                {!bodyKg && (
+                  <>
+                    {' '}
+                    · <a href="#/history">add your weight</a> for a better estimate
+                  </>
+                )}
+              </p>
             </div>
             <button
               className="btn btn--primary btn--lg"
@@ -190,6 +212,7 @@ export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
               exercise: m.exercise,
               sets: m.plan.sets,
               value: m.plan.value,
+              addedKg: m.plan.addedKg,
               kind: m.plan.kind,
               reason: m.plan.reason,
               why: m.why,
@@ -348,9 +371,9 @@ function DrillRow({ drill, active }: { drill: Drill; active?: ActiveControls }) 
 }
 
 function ExerciseCard({ item, index, active }: { item: MainItem; index: number; active?: ActiveControls }) {
+  const { state } = useProgress();
   const ex = item.exercise;
   const tree = treeById[ex.tree];
-  const unit = ex.target.unit;
   const each = ex.target.perSide ? ' each side' : '';
 
   return (
@@ -372,7 +395,7 @@ function ExerciseCard({ item, index, active }: { item: MainItem; index: number; 
       </div>
       <div className="wx-card__plan">
         <strong>
-          {formatSet(item.sets, item.value, unit)}
+          {formatWork(ex, item, state.units)}
           {each}
         </strong>
         <span className="muted small">
@@ -390,13 +413,18 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
   const toast = useToast();
   const ex = item.exercise;
   const unit = ex.target.unit;
+  const units = state.units;
+  const weighted = ex.target.addedKg !== undefined;
   const [adjusting, setAdjusting] = useState(false);
   const [sets, setSets] = useState(item.sets);
   const [value, setValue] = useState(item.value);
+  const [added, setAdded] = useState(toUnits(item.addedKg ?? 0, units));
+  const adjusted = { sets, value, ...(weighted && { addedKg: fromUnits(added, units) }) };
+  const planned = { sets: item.sets, value: item.value, ...(weighted && { addedKg: item.addedKg ?? 0 }) };
 
-  const record = (s: number, v: number) => {
-    const logId = log(ex.id, s, v, { sets: item.sets, value: item.value });
-    active.markLogged(ex.id, { sets: s, value: v, logId });
+  const record = (done: typeof adjusted) => {
+    const logId = log(ex.id, done, planned);
+    active.markLogged(ex.id, { ...done, logId });
     setAdjusting(false);
   };
 
@@ -405,7 +433,7 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
     return (
       <div className="wx-logged">
         <span className="wx-logged__text">
-          <Check size={15} aria-hidden /> Logged {formatSet(item.logged.sets, item.logged.value, unit)}
+          <Check size={15} aria-hidden /> Logged {formatWork(ex, item.logged, units)}
         </span>
         <button
           className="link-btn"
@@ -449,19 +477,29 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
               step={unit === 'seconds' ? 5 : 1}
               max={unit === 'seconds' ? 600 : 200}
             />
+            {weighted && (
+              <NumberStepper
+                label={`Added weight (${units})`}
+                value={added}
+                onChange={setAdded}
+                step={toUnits(loadStepKg(units), units)}
+                min={0}
+                max={units === 'lb' ? 400 : 180}
+              />
+            )}
           </div>
           <div className="wx-actions__row">
             <button className="btn btn--sm" onClick={() => setAdjusting(false)}>
               Cancel
             </button>
-            <button className="btn btn--primary btn--sm" onClick={() => record(sets, value)}>
-              Log {formatSet(sets, value, unit)}
+            <button className="btn btn--primary btn--sm" onClick={() => record(adjusted)}>
+              Log {formatWork(ex, adjusted, units)}
             </button>
           </div>
         </>
       ) : (
         <div className="wx-actions__row">
-          <button className="btn btn--primary btn--sm" onClick={() => record(item.sets, item.value)}>
+          <button className="btn btn--primary btn--sm" onClick={() => record(planned)}>
             <Check size={15} aria-hidden /> Done as planned
           </button>
           <button className="btn btn--sm" onClick={() => setAdjusting(true)}>
@@ -477,17 +515,18 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
 
 function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWorkout> }) {
   const toast = useToast();
-  const { finishWorkout, removeWorkout } = useProgress();
+  const { state, finishWorkout, removeWorkout } = useProgress();
   const active = session.active!;
   const { done, total } = workoutProgress(active);
   const logged = active.main.filter((m) => m.logged).length;
+  const kcal = activeCalories(active, bodyWeightOn(state) ?? DEFAULT_BODY_KG);
 
   const finish = () => {
-    finishWorkout(active.startedAt);
+    finishWorkout(active.startedAt, kcal);
     session.end();
     toast(
       done === total ? 'Workout complete!' : 'Workout finished',
-      `${logged} of ${active.main.length} exercises logged. Your next plans have been updated.`,
+      `${logged} of ${active.main.length} exercises logged, about ${kcal} kcal burned. Your next plans have been updated.`,
     );
     scrollToTop();
   };
@@ -511,7 +550,7 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
             <span style={{ width: pct(total ? done / total : 0) }} />
           </span>
           <span className="small">
-            {done} / {total} done
+            {done} / {total} done · about {kcal} kcal
           </span>
         </div>
       </header>

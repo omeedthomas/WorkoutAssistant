@@ -84,13 +84,20 @@ export function treeStats(tree: TreeId, mastered: MasteredMap) {
   return { done, available, total: list.length };
 }
 
+type Done = Pick<LogEntry, 'sets' | 'value' | 'addedKg'>;
+
 /** 0–1 score for one logged session against the mastery target. */
-export function logScore(ex: Exercise, log: Pick<LogEntry, 'sets' | 'value'>): number {
-  return Math.min(1, log.value / ex.target.value) * Math.min(1, log.sets / ex.target.sets);
+export function logScore(ex: Exercise, log: Done): number {
+  const { sets, value, addedKg } = ex.target;
+  const load = addedKg ? Math.min(1, (log.addedKg ?? 0) / addedKg) : 1;
+  return Math.min(1, log.value / value) * Math.min(1, log.sets / sets) * load;
 }
 
-export function meetsTarget(ex: Exercise, log: Pick<LogEntry, 'sets' | 'value'>): boolean {
-  return log.sets >= ex.target.sets && log.value >= ex.target.value;
+export function meetsTarget(ex: Exercise, log: Done): boolean {
+  const { sets, value, addedKg } = ex.target;
+  // Weights are entered in lb or kg, so allow for rounding against a target stored in kg.
+  const loaded = addedKg === undefined || (log.addedKg ?? 0) >= addedKg - 0.01;
+  return log.sets >= sets && log.value >= value && loaded;
 }
 
 export function bestLog(ex: Exercise, logs: LogEntry[] | undefined): LogEntry | undefined {

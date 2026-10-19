@@ -1,0 +1,838 @@
+/* ---------- Streak ---------- */
+
+.streak-widget {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.streak-widget:hover {
+  border-color: var(--border-strong);
+}
+
+.streak-widget.is-on {
+  border-color: color-mix(in srgb, var(--gold) 35%, var(--border));
+  background:
+    radial-gradient(circle at 0% 50%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 45%),
+    var(--surface);
+}
+
+.streak-widget__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
+.streak-widget.is-on .streak-widget__icon {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--gold);
+}
+
+.streak-widget__main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.streak-widget__value {
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.streak-widget__note {
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+.streak-widget__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* Countdown to the end of the streak: muted when safe, gold the day before, red on the last day. */
+.streak-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.streak-timer.is-soon {
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  color: var(--gold);
+}
+
+.streak-timer.is-urgent {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.streak-widget.is-urgent {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  background:
+    radial-gradient(circle at 0% 50%, color-mix(in srgb, var(--danger) 16%, transparent), transparent 50%),
+    var(--surface);
+}
+
+.streak-widget.is-urgent .streak-widget__icon {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  color: var(--danger);
+  animation: streak-pulse 1.6s ease-in-out infinite;
+}
+
+.streak-widget.is-urgent .streak-widget__note strong {
+  color: var(--text);
+}
+
+@keyframes streak-pulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-widget.is-urgent .streak-widget__icon {
+    animation: none;
+  }
+}
+
+.history-page__streak .streak-timer {
+  margin-left: 4px;
+}
+
+.reminder-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.week-strip {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.week-strip__day {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.week-strip__label {
+  color: var(--text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.week-strip__day.is-today .week-strip__label {
+  color: var(--text);
+}
+
+.week-strip__dot {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--surface-3);
+  border-radius: 50%;
+}
+
+.week-strip__day.is-trained .week-strip__dot {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+@media (max-width: 767px) {
+  .streak-widget {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+  }
+
+  .week-strip {
+    flex-basis: 100%;
+    justify-content: space-between;
+    padding-left: 56px;
+  }
+}
+
+/* ---------- Growth ---------- */
+
+.growth-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.growth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.growth:hover {
+  border-color: var(--border-strong);
+}
+
+.growth__main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.growth__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.growth__range {
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sparkline {
+  flex: none;
+  overflow: visible;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* A first session: a faint dashed baseline leading to the single mark. */
+.sparkline__start {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.sparkline circle {
+  fill: var(--tree, var(--accent));
+  stroke: var(--surface-2);
+  stroke-width: 2;
+}
+
+.growth__delta {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 56px;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.growth__delta.is-up {
+  color: var(--text);
+}
+
+.growth__delta.is-up svg {
+  color: var(--success);
+}
+
+.growth__delta.is-down svg {
+  color: var(--danger);
+}
+
+@media (max-width: 420px) {
+  .growth .sparkline {
+    display: none;
+  }
+}
+
+/* ---------- History page ---------- */
+
+.history-page__streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 16px;
+}
+
+.history-page__streak svg {
+  flex: none;
+  color: var(--gold);
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .history-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+
+.calendar .card__head h2 {
+  flex: 1;
+  justify-content: center;
+}
+
+.calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendar__weekday {
+  padding-bottom: 4px;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.calendar__day {
+  position: relative;
+  aspect-ratio: 1;
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar__day:hover {
+  border-color: var(--border-strong);
+}
+
+.calendar__day.is-trained {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+  color: var(--text);
+  font-weight: 650;
+}
+
+.calendar__day.has-weight::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transform: translateX(-50%);
+}
+
+.calendar__day.is-today {
+  border-color: var(--text-2);
+}
+
+.calendar__day.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.calendar__day.is-future {
+  background: transparent;
+  color: var(--text-3);
+}
+
+.calendar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+
+.calendar__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar__key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.calendar__key.is-trained {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+}
+
+.calendar__key.has-weight {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-2);
+}
+
+.calendar__count {
+  margin-left: auto;
+}
+
+.day-detail .card__head {
+  flex-wrap: wrap;
+}
+
+.day-detail__kcal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 0.85rem;
+}
+
+.day-detail__kcal svg,
+.day-detail__weight svg {
+  color: var(--gold);
+}
+
+.day-workout {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.day-workout__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.day-sessions {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.day-sessions li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-sessions a {
+  text-decoration: none;
+}
+
+.day-sessions a:hover {
+  text-decoration: underline;
+}
+
+.day-sessions__work {
+  margin-left: auto;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.day-detail__weight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Body weight ---------- */
+
+.weight-forms {
+  display: grid;
+  gap: 10px;
+}
+
+.field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.field-row .btn {
+  flex: none;
+}
+
+.field {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field__label {
+  color: var(--text-2);
+  font-size: 0.8rem;
+}
+
+.field input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.weight-goal {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.weight-goal .meter {
+  width: 100%;
+}
+
+.weigh-ins {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.weigh-ins li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.weigh-ins__date {
+  min-width: 56px;
+  color: var(--text-2);
+}
+
+.weigh-ins li .icon-btn {
+  margin-left: auto;
+}
+
+/* ---------- Weight fluctuation ---------- */
+
+.weight-fluct {
+  /* Diverging pair for change (validated on --surface: CVD and contrast checks pass). */
+  --viz-up: #d95926;
+  --viz-down: #3987e5;
+  margin-bottom: 16px;
+}
+
+.weight-fluct .card__head {
+  flex-wrap: wrap;
+}
+
+.weight-fluct .segmented {
+  flex-wrap: wrap;
+}
+
+.weight-fluct__body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.weight-fluct__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.weight-fluct__stats > div {
+  display: grid;
+  gap: 1px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.weight-fluct__stats dt {
+  color: var(--text-2);
+  font-size: 0.78rem;
+}
+
+.weight-fluct__stats dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.weight-fluct__stats span {
+  color: var(--text-3);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 700px) {
+  .weight-fluct__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.weight-fluct__charts {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.viz {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  color: var(--text-2);
+}
+
+.viz-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.viz-legend strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.viz-legend:not(:first-child) {
+  margin-top: 10px;
+}
+
+.viz-key {
+  display: inline-block;
+}
+
+.viz-key--dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 55%, var(--surface));
+}
+
+.viz-key--raw {
+  width: 16px;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 40%, var(--surface));
+}
+
+.viz-key--line {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.viz-key--goal {
+  width: 16px;
+  border-top: 1px dashed var(--text-3);
+}
+
+.viz-key--up,
+.viz-key--down {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--viz-up);
+}
+
+.viz-key--down {
+  background: var(--viz-down);
+}
+
+.viz-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.viz-zero {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.viz-goal {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.viz-crosshair {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.viz-tick {
+  fill: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-label {
+  fill: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.viz-dot {
+  fill: color-mix(in srgb, var(--accent) 55%, var(--surface));
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.viz-dot.is-active {
+  fill: var(--accent);
+}
+
+.viz-raw {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 40%, var(--surface));
+  stroke-width: 1;
+}
+
+.viz-trend {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.viz-bar.is-up {
+  fill: var(--viz-up);
+}
+
+.viz-bar.is-down {
+  fill: var(--viz-down);
+}
+
+.viz-bar.is-active {
+  stroke: var(--text);
+  stroke-width: 1;
+}
+
+.viz-tooltip {
+  position: absolute;
+  top: 28px;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 170px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  box-shadow: var(--shadow);
+  color: var(--text-2);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.viz-tooltip strong,
+.viz-tooltip b {
+  color: var(--text);
+}
+
+.weight-fluct__table summary {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.weight-fluct__table table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.weight-fluct__table th,
+.weight-fluct__table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+
+.weight-fluct__table th:first-child,
+.weight-fluct__table td:first-child {
+  text-align: left;
+}
+
+.weight-fluct__table th {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* Weighted exercises: added weight under each set's reps, and its own stepper row. */
+.plan-sets__load {
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-box__inputs > :nth-child(3) {
+  grid-column: 1 / -1;
+}

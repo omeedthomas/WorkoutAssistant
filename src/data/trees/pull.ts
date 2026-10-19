@@ -1,4 +1,4 @@
-import { hold, reps, repsEach } from '../targets';
+import { hold, reps, repsEach, weighted } from '../targets';
 import type { TreeDef } from '../types';
 
 export const pull: TreeDef = {
@@ -6,6 +6,7 @@ export const pull: TreeDef = {
   name: 'Pull',
   tagline: 'From your first dead hang to the one-arm chin-up.',
   color: '#1c7ed6',
+  ultimate: 'one-arm-chinup',
   tracks: [
     {
       id: 'pullups',
@@ -243,6 +244,46 @@ export const pull: TreeDef = {
             'Feet wide for stability',
             'Fight the urge to twist',
             'Start more upright if you need to',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'weighted-pullups',
+      name: 'Weighted Pull-ups',
+      from: ['pullup'],
+      steps: [
+        {
+          id: 'weighted-pullup',
+          name: 'Weighted Pull-up',
+          level: 6,
+          target: weighted(3, 5, 20),
+          description:
+            'Pull-ups with a dip belt, vest or a dumbbell between your feet. Log the added weight and add a little each time you complete the plan.',
+          cues: [
+            'Start every rep from a dead hang',
+            'Keep the weight still: brace your core and squeeze your legs together',
+            'Chin clearly over the bar, no kipping',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'weighted-chinups',
+      name: 'Weighted Chin-ups',
+      from: ['chinup'],
+      steps: [
+        {
+          id: 'weighted-chinup',
+          name: 'Weighted Chin-up',
+          level: 5,
+          target: weighted(3, 5, 20),
+          description:
+            'Chin-ups (palms facing you) with added weight. A little easier than weighted pull-ups and great for the biceps.',
+          cues: [
+            'Shoulder-width underhand grip',
+            'Pull your chest toward the bar',
+            'Lower all the way to straight arms',
           ],
         },
       ],

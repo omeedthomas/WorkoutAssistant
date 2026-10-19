@@ -7,6 +7,7 @@ export type Route =
   | { name: 'train' }
   | { name: 'workout'; focus?: TreeId[] }
   | { name: 'trees'; tree: TreeView; skill?: string }
+  | { name: 'history'; day?: string }
   | { name: 'start' }
   | { name: 'settings' };
 
@@ -32,6 +33,10 @@ export function parseHash(hash: string): Route {
       const focus = (parts[1] ?? '').split(',').filter((t): t is TreeId => t in treeById);
       return focus.length ? { name: 'workout', focus } : { name: 'workout' };
     }
+    case 'history': {
+      const day = parts[1] && /^\d{4}-\d{2}-\d{2}$/.test(parts[1]) ? parts[1] : undefined;
+      return day ? { name: 'history', day } : { name: 'history' };
+    }
     case 'start':
       return { name: 'start' };
     case 'settings':
@@ -47,6 +52,8 @@ export function toHash(route: Route): string {
       return `#/trees/${route.tree}${route.skill ? `/${route.skill}` : ''}`;
     case 'workout':
       return route.focus?.length ? `#/workout/${route.focus.join(',')}` : '#/workout';
+    case 'history':
+      return route.day ? `#/history/${route.day}` : '#/history';
     case 'start':
       return '#/start';
     case 'settings':

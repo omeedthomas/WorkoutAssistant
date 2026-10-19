@@ -6,6 +6,7 @@ export const muscleUp: TreeDef = {
   name: 'Muscle-up',
   tagline: 'Pull and dip in one move, on the bar and on rings.',
   color: '#d6336c',
+  ultimate: 'strict-bar-muscle-up',
   tracks: [
     {
       id: 'high-pull',

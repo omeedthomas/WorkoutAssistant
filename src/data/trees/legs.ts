@@ -1,4 +1,4 @@
-import { reps, repsEach } from '../targets';
+import { reps, repsEach, weightedEach } from '../targets';
 import type { TreeDef } from '../types';
 
 export const legs: TreeDef = {
@@ -6,6 +6,7 @@ export const legs: TreeDef = {
   name: 'Legs',
   tagline: 'Squats to pistols and shrimps, glute bridges to Nordic curls.',
   color: '#0ca678',
+  ultimate: 'pistol-squat',
   tracks: [
     {
       id: 'squat',
@@ -193,6 +194,26 @@ export const legs: TreeDef = {
           target: repsEach(3, 15),
           description: 'Calf raise on one leg. Builds ankle strength for jumping and landing.',
           cues: ['Slow on the way down', 'Full range every rep', 'Keep your knee soft'],
+        },
+      ],
+    },
+    {
+      id: 'weighted-split-squats',
+      name: 'Weighted Split Squats',
+      from: ['bulgarian-split-squat'],
+      steps: [
+        {
+          id: 'weighted-bulgarian-split-squat',
+          name: 'Weighted Bulgarian Split Squat',
+          level: 4,
+          target: weightedEach(3, 8, 20),
+          description:
+            'Bulgarian split squats holding dumbbells (or a loaded backpack). Log the total added weight, both hands together.',
+          cues: [
+            'Back foot on a bench, front foot far enough forward to keep your heel down',
+            'Weights hang straight down at your sides',
+            'Drop your back knee toward the floor, then drive up through the front heel',
+          ],
         },
       ],
     },

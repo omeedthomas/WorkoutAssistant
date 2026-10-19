@@ -107,11 +107,12 @@ function SkillMapInner({ view, selected }: Props) {
             isSelected: n.id === selected,
             progress: best ? logScore(ex, best) : 0,
             hasLogs: !!best,
+            units: state.units,
           },
         };
       }),
     ],
-    [layout, state.mastered, state.logs, state.goals, pathSet, selected],
+    [layout, state.mastered, state.logs, state.goals, state.units, pathSet, selected],
   );
 
   const edges = useMemo<Edge[]>(

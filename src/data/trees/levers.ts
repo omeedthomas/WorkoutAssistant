@@ -6,6 +6,7 @@ export const levers: TreeDef = {
   name: 'Levers',
   tagline: 'Front lever, back lever and the human flag.',
   color: '#1098ad',
+  ultimate: 'full-front-lever',
   tracks: [
     {
       id: 'front-lever',

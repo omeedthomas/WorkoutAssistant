@@ -1,4 +1,4 @@
-import { hold, reps, repsEach } from '../targets';
+import { hold, reps, repsEach, weighted } from '../targets';
 import type { TreeDef } from '../types';
 
 export const push: TreeDef = {
@@ -6,6 +6,7 @@ export const push: TreeDef = {
   name: 'Push',
   tagline: 'Push-ups and dips: the pressing base for almost every skill.',
   color: '#f03e3e',
+  ultimate: 'one-arm-pushup',
   tracks: [
     {
       id: 'pushups',
@@ -282,6 +283,46 @@ export const push: TreeDef = {
             'Keep the rings close to your body the whole rep',
             'Turn the rings out at the top',
             'Go slow until it stops shaking',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'weighted-pushups',
+      name: 'Weighted Push-ups',
+      from: ['pushup'],
+      steps: [
+        {
+          id: 'weighted-pushup',
+          name: 'Weighted Push-up',
+          level: 5,
+          target: weighted(3, 8, 20),
+          description:
+            'Push-ups with a weight vest, a backpack or a plate on your upper back. Log the added weight and add a little each time you complete the plan.',
+          cues: [
+            'Load sits high on your back, between the shoulder blades',
+            'Same strict form as a bodyweight push-up: chest to the floor, full lockout',
+            'Squeeze your glutes so the weight does not sag your hips',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'weighted-dips',
+      name: 'Weighted Dips',
+      from: ['dip'],
+      steps: [
+        {
+          id: 'weighted-dip',
+          name: 'Weighted Dip',
+          level: 6,
+          target: weighted(3, 6, 20),
+          description:
+            'Parallel bar dips with a dip belt, vest or a dumbbell held between your feet. One of the best ways to build pressing strength once bodyweight dips are easy.',
+          cues: [
+            'Full depth only as far as your shoulders stay comfortable',
+            'Keep the weight still: no swinging',
+            'Lock out fully at the top of every rep',
           ],
         },
       ],

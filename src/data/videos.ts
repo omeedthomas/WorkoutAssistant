@@ -133,5 +133,10 @@ export const videos: Record<string, ExerciseVideo> = {
   'wall-pushup': { youtubeId: 'wIPJvBQs7RA', title: 'How to Do Wall Push Ups: A Guide from Physical Therapists', channel: 'Hinge Health' },
   'wall-toe-pulls': { youtubeId: 'YkwI6ujTwmw', title: 'Chest To Wall Handstand Toe Pull', channel: 'Garrett Kuljian' },
   'wall-walk': { youtubeId: '6DNUhBOJj_w', title: 'WALL WALK TIP', channel: 'Jason Khalipa' },
+  'weighted-bulgarian-split-squat': { youtubeId: 'vLuhN_glFZ8', title: 'Dumbbell Bulgarian Split Squat (Full Tutorial) - Single Leg Exercise for QUADS', channel: 'J2FIT Strength & Conditioning' },
+  'weighted-chinup': { youtubeId: 'ktTWlfShrP8', title: 'Weighted Chin-ups (Exercise Library)', channel: 'Horton Barbell' },
+  'weighted-dip': { youtubeId: 'rKV-3YDubJE', title: 'WEIGHTED DIP TUTORIAL | How to Add More Weight Instantly', channel: 'Simonster Strength' },
+  'weighted-pullup': { youtubeId: 'oPigwqlUng0', title: 'The SECRETS of Weighted Pull-Ups | Feat. Pere', channel: 'GORNATION' },
+  'weighted-pushup': { youtubeId: 'xZRBXI7we44', title: 'Weighted Push Up Tutorial | For INCREDIBLE PUSHING GAINS', channel: 'Andrew Alinda' },
   'windshield-wiper': { youtubeId: 'X59_4RrU_aA', title: 'How to Do a Windshield Wiper | Ab Workout', channel: 'Howcast' },
 };

@@ -1,5 +1,15 @@
 import { exerciseById, treeById, type TreeId } from '../data';
+import type { Units } from '../lib/units';
 import type { WorkoutLength } from '../lib/workout';
+
+/** What was done (or planned) in one session: sets of reps or seconds, plus any added weight. */
+export interface Work {
+  sets: number;
+  /** Reps or seconds per set. */
+  value: number;
+  /** Weighted exercises: added weight in kg (0 = none). */
+  addedKg?: number;
+}
 
 export interface LogEntry {
   id: string;
@@ -10,8 +20,10 @@ export interface LogEntry {
   sets: number;
   /** Reps or seconds achieved in each set. */
   value: number;
+  /** Weighted exercises: added weight in kg (0 = none). */
+  addedKg?: number;
   /** What the app suggested for this session, so we can tell a hit from a miss. */
-  planned?: { sets: number; value: number };
+  planned?: Work;
 }
 
 /** A workout started from the Workout page. */
@@ -21,6 +33,28 @@ export interface WorkoutRecord {
   length: WorkoutLength;
   startedAt: string;
   finishedAt?: string;
+  /** Estimated calories burned, worked out when the workout is finished. */
+  kcal?: number;
+}
+
+/** A body-weight entry. `at` (ISO) decides which wins when two devices log the same day. */
+export interface WeighIn {
+  kg: number;
+  at: string;
+}
+
+export interface WeightGoal {
+  kg: number;
+  /** When it was set (ISO). */
+  at: string;
+}
+
+/** The areas you train and how long you like to train: Home builds today's workout from it. */
+export interface WorkoutPlan {
+  focus: TreeId[];
+  length: WorkoutLength;
+  /** When it was saved (ISO), so the newest wins across devices. */
+  at: string;
 }
 
 export interface ProgressState {
@@ -33,6 +67,12 @@ export interface ProgressState {
   onboarded: boolean;
   /** Local day (YYYY-MM-DD) → workouts started that day. */
   workouts: Record<string, WorkoutRecord[]>;
+  /** Local day (YYYY-MM-DD) → body weight logged that day. */
+  weight: Record<string, WeighIn>;
+  weightGoal: WeightGoal | null;
+  /** How weights are shown. They're always stored in kg. */
+  units: Units;
+  workoutPlan: WorkoutPlan | null;
 }
 
 export const MAX_GOALS = 5;
@@ -46,6 +86,10 @@ export const initialProgress: ProgressState = {
   goals: [],
   onboarded: false,
   workouts: {},
+  weight: {},
+  weightGoal: null,
+  units: 'lb',
+  workoutPlan: null,
 };
 
 /** Local calendar day, e.g. "2026-10-18". */
@@ -64,8 +108,13 @@ export type ProgressAction =
   | { type: 'applyStartingPoint'; master: string[]; unmaster: string[]; at: string }
   | { type: 'setOnboarded' }
   | { type: 'recordWorkout'; day: string; record: WorkoutRecord }
-  | { type: 'finishWorkout'; day: string; startedAt: string; at: string }
+  | { type: 'finishWorkout'; day: string; startedAt: string; at: string; kcal?: number }
   | { type: 'removeWorkout'; day: string; startedAt: string }
+  | { type: 'logWeight'; day: string; entry: WeighIn }
+  | { type: 'deleteWeight'; day: string }
+  | { type: 'setWeightGoal'; goal: WeightGoal | null }
+  | { type: 'setUnits'; units: Units }
+  | { type: 'setWorkoutPlan'; plan: WorkoutPlan | null }
   | { type: 'reset' }
   | { type: 'replace'; state: ProgressState };
 
@@ -144,7 +193,11 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
       return setDayWorkouts(
         state,
         action.day,
-        list.map((w) => (w.startedAt === action.startedAt ? { ...w, finishedAt: action.at } : w)),
+        list.map((w) =>
+          w.startedAt === action.startedAt
+            ? { ...w, finishedAt: action.at, ...(action.kcal !== undefined && { kcal: action.kcal }) }
+            : w,
+        ),
       );
     }
 
@@ -154,8 +207,27 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
       return setDayWorkouts(state, action.day, list.filter((w) => w.startedAt !== action.startedAt));
     }
 
+    case 'logWeight':
+      return { ...state, weight: { ...state.weight, [action.day]: action.entry } };
+
+    case 'deleteWeight': {
+      if (!state.weight[action.day]) return state;
+      const weight = { ...state.weight };
+      delete weight[action.day];
+      return { ...state, weight };
+    }
+
+    case 'setWeightGoal':
+      return { ...state, weightGoal: action.goal };
+
+    case 'setUnits':
+      return state.units === action.units ? state : { ...state, units: action.units };
+
+    case 'setWorkoutPlan':
+      return { ...state, workoutPlan: action.plan };
+
     case 'reset':
-      return { ...initialProgress, onboarded: state.onboarded };
+      return { ...initialProgress, onboarded: state.onboarded, units: state.units };
 
     case 'replace':
       return action.state;
@@ -166,6 +238,10 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const isPositive = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0;
+/** Added weight on an exercise, in kg. */
+const isLoad = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 500;
+/** A plausible body weight, in kg. */
+const isBodyWeight = (v: unknown): v is number => isPositive(v) && v >= 20 && v <= 400;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LENGTHS: WorkoutLength[] = ['short', 'standard', 'long'];
@@ -194,8 +270,11 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
         if (!isPositive(l.sets) || !isPositive(l.value)) continue;
         const entry: LogEntry = { id: l.id, date: l.date, sets: l.sets, value: l.value };
         if (typeof l.day === 'string' && DAY_RE.test(l.day)) entry.day = l.day;
+        if (isLoad(l.addedKg)) entry.addedKg = l.addedKg;
         const p = l.planned;
-        if (isRecord(p) && isPositive(p.sets) && isPositive(p.value)) entry.planned = { sets: p.sets, value: p.value };
+        if (isRecord(p) && isPositive(p.sets) && isPositive(p.value)) {
+          entry.planned = { sets: p.sets, value: p.value, ...(isLoad(p.addedKg) && { addedKg: p.addedKg }) };
+        }
         valid.push(entry);
       }
       if (valid.length) logs[id] = valid.slice(0, MAX_LOGS_PER_EXERCISE);
@@ -224,13 +303,45 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
           startedAt: w.startedAt,
         };
         if (typeof w.finishedAt === 'string') record.finishedAt = w.finishedAt;
+        if (isPositive(w.kcal)) record.kcal = Math.round(w.kcal);
         valid.push(record);
       }
       if (valid.length) workouts[day] = valid;
     }
   }
 
-  return { version: 1, mastered, logs, goals, onboarded: raw.onboarded === true, workouts };
+  const weight: Record<string, WeighIn> = {};
+  if (isRecord(raw.weight)) {
+    for (const [day, w] of Object.entries(raw.weight)) {
+      if (DAY_RE.test(day) && isRecord(w) && isBodyWeight(w.kg) && typeof w.at === 'string') weight[day] = { kg: w.kg, at: w.at };
+    }
+  }
+
+  const g = raw.weightGoal;
+  const weightGoal = isRecord(g) && isBodyWeight(g.kg) && typeof g.at === 'string' ? { kg: g.kg, at: g.at } : null;
+
+  const rawPlan = raw.workoutPlan;
+  const planFocus =
+    isRecord(rawPlan) && Array.isArray(rawPlan.focus)
+      ? [...new Set(rawPlan.focus.filter((t): t is TreeId => typeof t === 'string' && t in treeById))]
+      : [];
+  const workoutPlan: WorkoutPlan | null =
+    isRecord(rawPlan) && planFocus.length && LENGTHS.includes(rawPlan.length as WorkoutLength) && typeof rawPlan.at === 'string'
+      ? { focus: planFocus, length: rawPlan.length as WorkoutLength, at: rawPlan.at }
+      : null;
+
+  return {
+    version: 1,
+    mastered,
+    logs,
+    goals,
+    onboarded: raw.onboarded === true,
+    workouts,
+    weight,
+    weightGoal,
+    units: raw.units === 'kg' ? 'kg' : 'lb',
+    workoutPlan,
+  };
 }
 
 export function makeId(): string {

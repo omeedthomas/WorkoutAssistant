@@ -6,6 +6,7 @@ export const core: TreeDef = {
   name: 'Core',
   tagline: 'Hollow body, leg raises, L-sits and dragon flags: the tension behind every skill.',
   color: '#b8860b',
+  ultimate: 'dragon-flag',
   tracks: [
     {
       id: 'hollow',

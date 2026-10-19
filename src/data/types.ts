@@ -17,6 +17,8 @@ export interface Target {
   unit: Unit;
   /** The target applies to each side (left and right). */
   perSide?: boolean;
+  /** Weighted exercises: the added weight to master it with, in kg. */
+  addedKg?: number;
 }
 
 export interface StepDef {
@@ -48,6 +50,8 @@ export interface TreeDef {
   name: string;
   tagline: string;
   color: string;
+  /** The signature skill at the top of the tree. Home shows progress toward it. */
+  ultimate: string;
   tracks: TrackDef[];
 }
 
