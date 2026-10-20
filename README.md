@@ -1,6 +1,7 @@
 # Ascent: calisthenics skill trees
 
-A React web app (desktop and phone) that maps calisthenics strength as **skill trees**. Every skill is a
+A React web app (desktop and phone) and a native Android/iOS app that map calisthenics strength as
+**skill trees**. Both share one core of exercise data and training logic (`packages/core`). Every skill is a
 progression ladder (wall push-up → incline → knee → push-up → …). Ladders connect into bigger skills across
 trees: the bar muscle-up needs chest-to-bar pull-ups (Pull) **and** straight-bar dips (Push), and the front
 lever needs pull-ups **and** a hollow body hold (Core).
@@ -43,7 +44,7 @@ lever needs pull-ups **and** a hollow body hold (Core).
   The Gym, Squat University, Rehab My Patient and others). The player loads only when you press play (or follow a
   guided workout), in privacy-enhanced (no-cookie) mode.
 - **Today's plan (automatic progression):** every exercise gets a prescription for the next session, worked
-  out from your history (`src/lib/progression.ts`):
+  out from your history (`packages/core/src/lib/progression.ts`):
   - *No history:* start at about half the mastery target (e.g. push-ups 3 × 6 toward 3 × 12).
   - *Plan completed:* add a rep (or about 10% of the target, so +2 reps for 3 × 20, +5s for 45s holds).
   - *Fewer sets than the target:* add a set before adding reps.
@@ -132,19 +133,112 @@ lever needs pull-ups **and** a hollow body hold (Core).
 
 ## Running it
 
-Requires Node.js 20.19+ (22/24 LTS recommended).
+Requires Node.js 20.19+ (22/24 LTS recommended). The repo is an npm workspaces monorepo: run everything from
+the root, where one `npm install` sets up the shared core, the web app and the phone app.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # web app at http://localhost:5173
 npm run dev:lan    # also serves on your network, so you can open it on your phone (same Wi-Fi)
+npm run mobile     # phone app (see below)
 npm test           # data-integrity + logic tests (Vitest)
-npm run build      # typecheck + production build into dist/
+npm run typecheck  # all three packages
+npm run build      # web: typecheck + production build into apps/web/dist/
 npm run check:videos  # confirms every how-to video still exists and allows embedding (needs internet)
 ```
 
-`dist/` is a static site. Host it anywhere (Netlify, Vercel, GitHub Pages, or any static server). It uses hash
-routing (`#/trees/push/pushup`), so no server rewrites are needed.
+`apps/web/dist/` is a static site. Host it anywhere (Netlify, Vercel, GitHub Pages, or any static server). It
+uses hash routing (`#/trees/push/pushup`), so no server rewrites are needed.
+
+### The phone app (`apps/mobile`)
+
+A native Android and iOS app built with [Expo](https://expo.dev) (React Native), with its own phone UI:
+
+- **Today:** today's workout in a big card with a Start button, your streak, the areas you train and a
+  length picker showing the estimated time.
+- **Guided workout:** a full-screen player with a big rep count or countdown, a REST screen with "+15 s",
+  "Skip rest" and what's up next, and a voice coach that reads it all out. The screen stays on, and finished
+  exercises are logged automatically.
+- **Skills:** every tree, its progressions as ladders, and each exercise's plan, logger, history, cues and
+  how-to video.
+- **History** and **Me** (Google Drive sync, units, voice coach, reset).
+
+It uses the same progression engine, workout generator and saved format as the web app, and syncs with the
+same Google Drive files (see below).
+
+> **Keep the project out of OneDrive, at a short path.** OneDrive turns files it has synced into placeholders
+> that Node reports as symbolic links, and the app's bundler (Metro) then can't see them ("Unable to resolve
+> react/jsx-runtime"). It also uploads gigabytes of `node_modules` and Android build files. And Android's native
+> build names files after their full path, so on Windows (260-character limit) the repo folder should be at most
+> about 25 characters long. Clone it to something like `C:\dev\WorkoutAssistant`.
+
+**Try it on your phone (no Mac or Android Studio needed):** install **Expo Go** from the App Store or Google
+Play, run `npm run mobile` on your computer, and scan the QR code (with the Camera app on iPhone, or Expo Go on
+Android). Your phone and computer need to be on the same Wi-Fi.
+
+**Store builds:** [EAS Build](https://docs.expo.dev/build/introduction/) builds the iOS and Android apps in the
+cloud, so iOS builds don't need a Mac. Publishing needs an Apple Developer account ($99/year) and a Google Play
+developer account ($25 once). The app ids are `com.omeedthomas.ascent` (`apps/mobile/app.json`); change them
+before the first store build if you want different ones, since they can't change afterwards.
+
+#### Testing on an Android emulator (Windows)
+
+Needs JDK 17, the Android SDK (`%LOCALAPPDATA%\Android\Sdk`, with `ANDROID_HOME` set) and a virtual device;
+this machine has them, with a Pixel 8 on Android 16 called `Pixel_8_API_36` (Google Play image, so Google
+sign-in works). The emulator also needs **Windows Hypervisor Platform**, which takes an administrator PowerShell
+once, then a restart:
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All
+```
+
+Then:
+
+```bash
+emulator -avd Pixel_8_API_36        # start the virtual phone
+npm run android -w @ascent/mobile   # build the development app, install it on the emulator, start the bundler
+```
+
+`emulator -accel-check` should report WHPX as "installed and usable". The first build takes several minutes;
+after that `npm run mobile` is enough unless native dependencies change. `npm run android` only regenerates
+`apps/mobile/android/` when it's missing, so delete that folder after changing `app.json`, `app.config.ts` or
+the plugins in `apps/mobile/plugins/` (one of them, `withShortCmakeObjectPaths`, keeps native build paths under
+Windows' limit).
+
+#### Testing on iPhone
+
+Apple's iOS Simulator only runs on a Mac, so from Windows:
+
+- **Expo Go on a real iPhone:** `npm run mobile` and scan the QR code. Everything works except Google Drive sync,
+  which needs native code Expo Go doesn't include.
+- **iOS Simulator build in the cloud:** `npx eas-cli build -p ios --profile ios-simulator` (a free Expo account,
+  no Apple account needed). Run the result on a Mac's simulator, or in the browser with a service like
+  [Appetize.io](https://appetize.io).
+- **Development build on a real iPhone:** `npx eas-cli build -p ios --profile development` (needs an Apple
+  Developer account).
+
+#### Google Drive sync on the phone
+
+The Me tab signs in with Google's native SDKs and syncs with the same `My Drive/Ascent/` files as the website,
+through the same engine (`packages/core/src/cloud`): it merges on sign-in, saves each change, and picks up other
+devices' changes when you open the app or tap **Sync now**. Unlike the browser, the phone keeps access by
+itself, so there's no hourly reconnect.
+
+Set it up in the **same Google Cloud project** as the website's OAuth client, so all three count as one app
+and can see each other's files:
+
+1. **APIs & Services → Credentials → Create credentials → OAuth client ID → Android:** package name
+   `com.omeedthomas.ascent`, SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` (the development
+   build's debug key; add your release key's SHA-1 too before publishing).
+2. **iOS** (only for iPhone builds): another OAuth client ID of type iOS with bundle ID `com.omeedthomas.ascent`.
+3. Copy `apps/mobile/.env.example` to `apps/mobile/.env.local` and set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` to the
+   website's client id (the same value as `VITE_GOOGLE_CLIENT_ID`), and `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` to the
+   iOS one.
+4. Rebuild the development app (`npm run android -w @ascent/mobile`). If the consent screen is in **Testing**,
+   your Google account must be listed as a test user.
+
+To try syncing without Google, set `EXPO_PUBLIC_CLOUD_MOCK=true` in `.env.local`: a fake "Test User" whose
+"Drive" is stored on the device.
 
 ## Accounts (Google sign-in + Google Drive)
 
@@ -185,7 +279,7 @@ never the rest of anyone's Drive. Google classes this as a non-sensitive scope.
 4. **Create the OAuth client:** *Clients* (or *Credentials*) *→ Create client → Web application*. Under
    **Authorized JavaScript origins**, add `http://localhost:5173` and, later, your site's HTTPS address.
    Redirect URIs aren't needed.
-5. **Add the client id:** copy `.env.example` to `.env.local` and set
+5. **Add the client id:** copy `apps/web/.env.example` to `apps/web/.env.local` and set
    `VITE_GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com`. The id isn't secret, and
    `.env.local` is gitignored anyway.
 6. **Restart** `npm run dev`. A *Sign in* button appears in the header and in Settings.
@@ -204,13 +298,13 @@ never the rest of anyone's Drive. Google classes this as a non-sensitive scope.
 Both live in the app, at `#/privacy` and `#/terms` (`src/pages/LegalPages.tsx`), and are linked from
 Settings and the sign-in prompt. They describe exactly what the app does: data stays in the browser and the
 user's own Drive, it requests only the `drive.file` scope, and it follows Google's Limited Use requirements.
-Update them, and `LEGAL_UPDATED` in `src/data/legal.ts`, whenever that changes. Have them reviewed before
+Update them, and `LEGAL_UPDATED` in `apps/web/src/data/legal.ts`, whenever that changes. Have them reviewed before
 publishing; they're a starting draft, not legal advice.
 
 Sign-in needs `localhost` or HTTPS. To test on your phone, use the deployed site rather than
 `http://<your-LAN-IP>`.
 
-### How syncing works (`src/cloud/`)
+### How syncing works (`packages/core/src/cloud/`)
 
 - **First sign-in:** anything already on the device is uploaded. If the Drive already has Ascent data
   (from another device), the two are **merged**: mastered skills, sessions, goals and workouts from both,
@@ -238,7 +332,8 @@ it; `ascent:mock-renewals` counts renewals). It's development only and never inc
 ## Project layout
 
 ```
-src/
+packages/core/        @ascent/core: shared by both apps (plain TypeScript, no browser or phone APIs)
+ src/
   data/
     types.ts          TreeDef → TrackDef → StepDef (authoring format) and the flattened Exercise
     trees/*.ts        One file per skill tree (all exercise content lives here)
@@ -256,31 +351,44 @@ src/
     equipment.ts      What you can do with your equipment, and the closest alternatives
     guided.ts         Turns a started workout or a routine into guided steps (sets, sides, rest) and announcer lines
     routines.ts       Which routines were done when, and today's suggested routine
-    announcer.ts      Spoken announcements (browser speech) and guided-workout preferences
     history.ts        Per-day summaries, streaks, rep growth, body-weight goal progress
     calories.ts       Calorie estimates (MET values × body weight × time)
     units.ts          lb/kg conversion and plate rounding (weights are stored in kg)
-    layout.ts         dagre layout for the map (plus "ghost" nodes for prerequisites in other trees)
-    router.ts         Tiny hash router
   cloud/
-    drive.ts          Google sign-in (Identity Services) + access tokens
     driveStore.ts     Google Drive files: Ascent/, progress.json, workouts/<day> <workout>.json
     documents.ts      Progress ⇄ documents (one per training day), and the minimal diff
     syncEngine.ts     Reconcile on sign-in, push changes, pull other devices' changes, reconnect
     merge.ts          Lossless merge of two copies of progress
-    mock.ts           Dev-only fake accounts
   state/
     progress.ts       Pure reducer, validation of stored/imported data
-    ProgressContext   React context + localStorage persistence (synced across tabs)
-    CloudContext      Account state, sync status, sign in/out
+    activeWorkout.ts  The started workout (a snapshot for the day)
+  portable.test.ts    Keeps browser, React and phone APIs out of core
+
+apps/web/             @ascent/web: the web app (React + Vite)
+ src/
+  lib/                router.ts (hash router), layout.ts (dagre map layout), announcer.ts (browser speech)
+  cloud/              drive.ts (Google sign-in), mock.ts (dev-only fake accounts), metaStore.ts, config
+  state/              ProgressContext (localStorage, synced across tabs), CloudContext, activeWorkout storage
   components/         SkillMap (React Flow), SkillNode, SkillList, SkillDetail, GuidedPlayer, DailyMobility, nav, toast…
   pages/              Train, Workout, Mobility, History, Trees, Starting point, Equipment, Settings, legal pages
   styles/             Plain CSS with design tokens in base.css
+  assets/trees/       Home card photos
+
+apps/mobile/          @ascent/mobile: the Android/iOS app (Expo, React Native)
+ src/
+  app/                Screens (Expo Router): (tabs)/ Today, Skills, History, Me; tree/[id], exercise/[id], workout
+  state/              Progress, started workout, preferences (AsyncStorage) and CloudContext (Drive sync)
+  cloud/              Google Sign-In + Drive backend, dev mock, sync bookkeeping on the phone
+  lib/                useGuidedPlayer (the workout player's state machine), coach (voice + haptics), dialogs
+  components/ui.tsx   Cards, buttons, chips, steppers…
+  theme.ts            The same colors as the web app
+
+scripts/check-videos.mjs   Confirms every video exists and allows embedding
 ```
 
 ## Adding or changing progressions
 
-Everything is data in `src/data/trees/*.ts`. A **track** is a linear progression, and each step automatically
+Everything is data in `packages/core/src/data/trees/*.ts`. A **track** is a linear progression, and each step automatically
 requires the step before it. Use `from` for what a track's first step needs, and `requires` for extra
 prerequisites on a single step, which can come from any tree:
 
@@ -312,12 +420,13 @@ Steps that need equipment list it with `equipment: ['pullup-bar', 'rings']` (any
 suggest `alternatives: ['…']` (exercise ids) for people without it. A tree's `kind` is `'skill'` or `'therapy'`,
 which decides the Home section it appears in.
 
-To add a whole new tree, create a `TreeDef` file, add its id to `TreeId` in `types.ts`, and add it to the
-`trees` array in `data/index.ts`.
+To add a whole new tree, create a `TreeDef` file, add its id to `TreeId` in `types.ts`, add it to the
+`trees` array in `data/index.ts` and to `BLOCK_OF` in `lib/workout.ts`, and give it a Home card photo in the web
+app (`apps/web/src/assets/trees/` + `apps/web/src/data/treeImages.ts`). Data changes reach both apps.
 
 ### Videos
 
-Videos live in `src/data/videos.ts`, keyed by exercise id:
+Videos live in `packages/core/src/data/videos.ts`, keyed by exercise id:
 
 ```ts
 'pushup': { youtubeId: 'IODxDxX7oi4', title: 'The Perfect Push Up | Do it right!', channel: 'Calisthenicmovement' },
@@ -331,11 +440,13 @@ exercise needs a video entry, or `npm test` will fail. Warm-up and cooldown dril
 ## Stack
 
 React 19, TypeScript, Vite, Google Identity Services + the Google Drive API for accounts, [React Flow](https://reactflow.dev) (`@xyflow/react`) for the map,
-[dagre](https://github.com/dagrejs/dagre) for automatic layout, lucide icons, and Vitest.
+[dagre](https://github.com/dagrejs/dagre) for automatic layout, lucide icons, and Vitest. The phone app uses
+Expo SDK 58 (React Native 0.88) with Expo Router, expo-speech, expo-haptics and AsyncStorage. npm workspaces tie
+the three packages together.
 
 ## Photo credits
 
-The Home skill-card photos (`src/assets/trees/`, 640 × 640 crops) are from [Unsplash](https://unsplash.com),
+The Home skill-card photos (`apps/web/src/assets/trees/`, 640 × 640 crops) are from [Unsplash](https://unsplash.com),
 free to use under the [Unsplash License](https://unsplash.com/license):
 
 | Card | Photographer | Photo |
@@ -354,4 +465,4 @@ free to use under the [Unsplash License](https://unsplash.com/license):
 | Hips | silvia_berger | [unsplash.com/photos/gwEtNJKjepY](https://unsplash.com/photos/gwEtNJKjepY) |
 | Mobility | Yazid N | [unsplash.com/photos/-GdW_D027rM](https://unsplash.com/photos/-GdW_D027rM) |
 
-To swap one, replace the file in `src/assets/trees/` (a square WebP works best) and update this table.
+To swap one, replace the file in `apps/web/src/assets/trees/` (a square WebP works best) and update this table.

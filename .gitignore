@@ -13,3 +13,6 @@ coverage
 Thumbs.db
 *.log
 .env*
+
+# Example env files document settings (no secrets), so keep them in git.
+!apps/mobile/.env.example

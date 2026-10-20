@@ -1,0 +1,21 @@
+{
+  "name": "@ascent/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Everything the web and mobile apps share: the exercise catalog, progression, the workout generator, history, and the saved and synced progress format. Plain TypeScript with no browser or React Native APIs.",
+  "exports": {
+    "./data": "./src/data/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,9 +1,9 @@
-// Checks that every how-to video in src/data/videos.ts still exists and allows embedding.
+// Checks that every how-to video in packages/core/src/data/videos.ts still exists and allows embedding.
 // YouTube's oEmbed endpoint fails for removed, private and embed-disabled videos.
 // Usage: npm run check:videos
 import { readFileSync } from 'node:fs';
 
-const src = readFileSync(new URL('../src/data/videos.ts', import.meta.url), 'utf8');
+const src = readFileSync(new URL('../packages/core/src/data/videos.ts', import.meta.url), 'utf8');
 const entries = [...src.matchAll(/^\s+'?([\w-]+)'?: \{ youtubeId: '([\w-]{11})'/gm)].map((m) => ({
   exercise: m[1],
   youtubeId: m[2],

@@ -2,141 +2,202 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Ascent is a client-only React 19 + TypeScript + Vite app that models calisthenics as skill trees, plans each
-session from logged history, and optionally syncs progress to the user's own Google Drive. There is no backend.
+Ascent models calisthenics as skill trees, plans each session from logged history, and optionally syncs progress
+to the user's own Google Drive. There is no backend. It's an npm workspaces monorepo:
+
+- `packages/core` (`@ascent/core`): everything both apps share. That means the exercise catalog, progression,
+  the workout generator, history and streaks, and the saved and synced progress format. It's plain TypeScript,
+  imported as source (`@ascent/core/data`, `@ascent/core/lib/workout`, …) through its `exports` map; there's no
+  build step.
+- `apps/web` (`@ascent/web`): the React 19 + Vite web app (static site, hash routing).
+- `apps/mobile` (`@ascent/mobile`): the native Android/iOS app (Expo SDK 58, React Native, Expo Router). It has
+  its own UI and uses core for all logic. Read `apps/mobile/AGENTS.md` before touching Expo APIs.
+
 README.md has the user-facing feature list and the Google Cloud setup steps.
 
 ## Commands
 
-Requires Node.js 20.19+.
+Requires Node.js 20.19+. Run everything from the repo root (one `npm install` there installs all workspaces).
 
 ```bash
-npm run dev            # http://localhost:5173 (strictPort)
+npm run dev            # web app at http://localhost:5173 (strictPort)
 npm run dev:lan        # also serve on the LAN
-npm test               # Vitest, run once
-npm run test:watch
-npx vitest run src/lib/progression.test.ts      # one file
-npx vitest run -t "has no prerequisite cycles"  # one test by name
-npm run typecheck      # tsc --noEmit
-npm run build          # typecheck + vite build into dist/ (static site, hash routing)
+npm run mobile         # Expo dev server: scan the QR code with Expo Go on a phone
+npm test               # Vitest in core and web
+npm run typecheck      # core and web (TypeScript 7) and mobile (TypeScript 6, pinned by Expo)
+npm run build          # web: typecheck + vite build into apps/web/dist/
 npm run check:videos   # hits YouTube oEmbed to confirm every video exists and allows embedding (needs network)
+
+npx vitest run src/lib/progression.test.ts       # one file (from packages/core)
+npx vitest run -t "has no prerequisite cycles"   # one test by name (from packages/core)
+npm run doctor -w @ascent/mobile                 # expo-doctor: dependency and config checks
+npx expo export --platform android --platform ios --output-dir <tmp>   # from apps/mobile: proves the native bundles build
 ```
 
-There is no linter. TypeScript is strict with `noUnusedLocals`, `noUnusedParameters` and `verbatimModuleSyntax`
-(type-only imports must use `import type`), so unused code fails the build.
+There is no linter. Core and web TypeScript are strict with `noUnusedLocals`, `noUnusedParameters` and
+`verbatimModuleSyntax` (type-only imports must use `import type`), so unused code fails the build.
 
 Fake accounts without Google: `VITE_CLOUD_MOCK=true npm run dev` (PowerShell: `$env:VITE_CLOUD_MOCK='true'; npm run dev`).
 The mock "Drive" lives in localStorage; set `localStorage['ascent:mock-expired'] = '1'` to simulate expired access (the next tap renews it automatically; `ascent:mock-renewals` counts renewals).
-Real sign-in needs `VITE_GOOGLE_CLIENT_ID` in `.env.local` (see `.env.example`); without it the app runs local-only.
+Real sign-in needs `VITE_GOOGLE_CLIENT_ID` in `apps/web/.env.local` (see `apps/web/.env.example`); without it the web app runs local-only.
 
-## Architecture
+## Monorepo rules
+- **Core stays portable.** `packages/core/src/portable.test.ts` fails if core code uses `localStorage`, `window`,
+  `document`, `navigator`, speech, `import.meta.env`, React, React Native or Expo. Storage, speech, env config,
+  network status and UI belong to each app; core takes them as parameters or hooks (e.g. `SyncEngine`'s
+  `MetaStore` and `isOffline`, `restoreActiveWorkout(raw)` for whatever an app stored).
+- **One React.** Expo pins React exactly (19.3.0 for SDK 58), and a second copy in the bundle crashes the app with
+  "Invalid hook call". The root `package.json` `overrides` and the web app's exact `react`/`react-dom` versions
+  keep a single copy; change them together when upgrading Expo. React Native must never be duplicated
+  (`npm why react-native`).
+- Mobile dependencies: add them with `npx expo install <pkg>` from `apps/mobile` so versions match the SDK.
+
+## Architecture (`packages/core/src` unless noted)
 
 ### Data: authored trees → flattened catalog
-- `src/data/trees/*.ts` hold all exercise content as `TreeDef → TrackDef → StepDef`. Each step implicitly requires
+- `data/trees/*.ts` hold all exercise content as `TreeDef → TrackDef → StepDef`. Each step implicitly requires
   the previous step in its track; `from` sets the first step's prerequisites and `requires` adds extra ones from
   any tree. Targets come from the helpers in `data/targets.ts`.
-- `src/data/index.ts` runs `buildCatalog` once at import time to produce `exercises`, `exerciseById`, `tracks`,
-  `trackByKey` and `dependentsOf`. Import catalog data from `src/data`, not from individual tree files.
+- `data/index.ts` runs `buildCatalog` once at import time to produce `exercises`, `exerciseById`, `tracks`,
+  `trackByKey` and `dependentsOf`. Import catalog data from `@ascent/core/data`, not from individual tree files.
 - A new tree also needs its id in `TreeId` (`types.ts`), an entry in the `trees` array (`index.ts`), an
   `ultimate` skill (the Home skill card tracks progress along the path to it), and a card photo in
-  `src/assets/trees/` registered in `data/treeImages.ts` (credit it in the README).
+  `apps/web/src/assets/trees/` registered in `apps/web/src/data/treeImages.ts` (credit it in the README). Also
+  add it to `BLOCK_OF` in `lib/workout.ts`.
 - Weighted exercises (`weighted()` / `weightedEach()` targets) carry `target.addedKg`, the mastery load. They
   progress by load, not reps (`planWeighted` in `progression.ts`), and `generateWorkout` holds them back until
   the user has logged one or made it a goal, since they need equipment.
-- Trees have a `kind`: `'skill'` (the eight calisthenics trees plus Breakdance) or `'therapy'` (Shoulder Rehab, Lower Back, Hips,
-  Mobility). Home shows them in separate sections, and `generateWorkout` puts therapy exercises in their own
-  last block.
+- Trees have a `kind`: `'skill'` (the eight calisthenics trees plus Breakdance) or `'therapy'` (Shoulder Rehab,
+  Lower Back, Hips, Mobility). Both apps show them in separate sections, and `generateWorkout` puts therapy
+  exercises in their own last block.
 - Equipment: `StepDef.equipment` lists the gear an exercise needs (any one will do) and `alternatives` suggests
   exercise ids for people without it. `state.equipment` (`null` = never set, so nothing is filtered) holds what
   the user owns. `lib/equipment.ts` decides access (`ready` / `substitute` via a household stand-in from
   `data/equipment.ts` / `missing`), and `fitEquipment` in `workout.ts` adds setup notes or swaps exercises.
-- `src/data/catalog.test.ts` checks the catalog: ids exist, no cycles, a prerequisite is never harder than what it
+- `data/catalog.test.ts` checks the catalog: ids exist, no cycles, a prerequisite is never harder than what it
   unlocks, and every exercise has exactly one entry in `videos.ts`. Run `npm test` after any data change.
   Warm-up/cooldown drills (`drills.ts`) reuse an exercise's video via `exercise`, or have their own entry in
   `drillVideos`; `lib/guided.test.ts` checks every drill has one.
 - Daily mobility routines (`data/routines.ts`) are ordered lists of drill ids. Drills with `phase: 'mobility'`
   only appear in routines; routines can also use warm-up/cooldown drills. A finished routine is stored as a
   `WorkoutRecord` with `routine` set (focus `['mobility']`), so it shows in History and counts for the streak,
-  but `TodayCard` ignores it when deciding whether today's planned workout is done.
-- `scripts/check-videos.mjs` parses `videos.ts` with a regex, so keep each entry on one line in the form
-  `'exercise-id': { youtubeId: '...', title: '...', channel: '...' },`.
-- **Exercise ids are persisted** (localStorage, JSON exports, Drive files). `sanitizeProgress` silently drops
-  unknown ids, so renaming or removing an id discards users' mastery and logs for it.
+  but the web `TodayCard` ignores it when deciding whether today's planned workout is done.
+- `scripts/check-videos.mjs` (repo root) parses `data/videos.ts` with a regex, so keep each entry on one line in
+  the form `'exercise-id': { youtubeId: '...', title: '...', channel: '...' },`.
+- **Exercise ids are persisted** (local storage on both apps, JSON exports, Drive files). `sanitizeProgress`
+  silently drops unknown ids, so renaming or removing an id discards users' mastery and logs for it.
 
-### Pure logic (`src/lib`)
+### Pure logic (`lib/`)
 `graph.ts` (status, ancestors, goal paths), `progression.ts` (`planSession`: the next-session prescription
 from history; mastered exercises keep progressing past the target via `planMastered`), `workout.ts`
 (`generateWorkout`: `mainCount` exercises split across the chosen areas; each area's list is the goal path, then
 current steps with main tracks before variations, one due mastered exercise (`maintenanceFor`) slotted in right
 after the first, then lead-ins, then steps a little ahead (`NEXT_UP_GAP`) so every area gets at least
 `MIN_PER_AREA`; a test sweeps every tree to hold that; `suggestSplit`), `history.ts` (per-day summaries, streaks,
-rep growth, body-weight goal progress), `calories.ts` (MET-based estimates) and `layout.ts` (dagre layout for
-React Flow) are pure functions of the catalog plus `ProgressState`. Tests run in Vitest's `node` environment
-with no DOM, so logic belongs here or in `state/progress.ts`, not in components, if it needs tests.
+rep growth, body-weight goal progress), `calories.ts` (MET-based estimates) and `guided.ts` are pure functions of
+the catalog plus `ProgressState`. Tests run in Vitest's `node` environment with no DOM, so logic that needs tests
+belongs in core, not in either app's components.
 
 **Weights are always stored in kg** (`addedKg` on logs, plans and targets, weigh-ins, the weight goal).
 `state.units` (`lb`/`kg`) only changes display and input; convert with `lib/units.ts`. Plans snap loads to
 5 lb / 2.5 kg plates (`snapLoad`), and targets display rounded up so hitting the shown number meets them.
 
 ### State
-- `src/state/progress.ts` holds the single `ProgressState` (`version: 1`), its reducer, and `sanitizeProgress`,
-  the one validation gate for anything loaded from localStorage, an imported file or the cloud.
-- `ProgressContext.tsx` persists to localStorage key `ascent:progress:v1` and syncs open tabs through the
-  `storage` event. Components change progress only through its `useProgress()` API.
-- `activeWorkout.ts` stores the started workout separately (`ascent:workout:v1`) as a snapshot for that day, so
-  logging sets mid-workout doesn't regenerate it. It also holds the guided player's state (`guided`, `position`).
+- `state/progress.ts` holds the single `ProgressState` (`version: 1`), its reducer, and `sanitizeProgress`,
+  the one validation gate for anything loaded from storage, an imported file or the cloud.
+- `state/activeWorkout.ts` defines the started workout: a snapshot for that day (`snapshot`), so logging sets
+  mid-workout doesn't regenerate it, plus the guided player's state (`guided`, `position`) and
+  `restoreActiveWorkout` to validate a stored one. Each app stores it under `ascent:workout:v1`.
+- Both apps keep progress under `ascent:progress:v1` in the same format (web: localStorage; mobile: AsyncStorage),
+  and change it only through a `useProgress()` API with the same methods.
 - Guided workouts: `lib/guided.ts` turns the snapshot (`guidedSteps`) or a mobility routine (`routineSteps`) into
   steps (every set, each side of a per-side timed hold), rest lengths (`restSeconds` in `progression.ts`, also
-  used for "Rest …" labels and time estimates) and announcer lines. `components/GuidedPlayer.tsx` is the generic
-  player, a small state machine (get-ready → work → rest) on `Date.now()`-based timers; `GuidedWorkout.tsx`
-  wraps it to log exercises and tick drills, and `pages/MobilityPage.tsx` to record finished routines. Speech
-  goes through `lib/announcer.ts` (`speechSynthesis`, preferring an on-device voice); its on/off and demo-video
-  preferences are per device in localStorage (`ascent:guide`), not synced.
+  used for "Rest …" labels and time estimates) and announcer lines. Each app has its own player state machine
+  (get-ready → work → rest on `Date.now()`-based timers): web `components/GuidedPlayer.tsx`, mobile
+  `src/lib/useGuidedPlayer.ts`. Both log finished exercises the same way (the sets completed, with `planned`).
 - Days are local calendar days (`localDay()`, `YYYY-MM-DD`), not UTC. Logs, workouts and weigh-ins are filed by
   them; do date arithmetic on them with `addDays` / `daysBetween` from `lib/history.ts`.
-- Signing out clears this device's progress and the started workout (`clearActiveWorkout`), since both belong
-  to the account. Home starts a workout without the Workout page mounted by writing the snapshot
-  (`saveActiveWorkout`); the Workout page picks it up when it opens.
 - Streak timing lives in `lib/history.ts` (`streakOf`, `streakDeadline`, `streakUrgency`, `REMINDER_HOURS`).
-  `StreakReminder` (mounted once in `App.tsx`) shows the in-app reminder and, if enabled on this device (a
-  localStorage preference, not synced), browser notifications; it records what it sent per day so reloads
-  don't repeat them.
-- `state.workoutPlan` (areas + length) drives Home's `TodayCard`: setup → today's workout → in progress →
-  "Great Job!". It also seeds the Workout page's default selection.
-- Provider order in `main.tsx`: `ProgressProvider > ToastProvider > CloudProvider`. Cloud depends on progress.
+- `state.workoutPlan` (areas + length) drives Today: the web `TodayCard` and the mobile Today tab.
 
-### Cloud sync (`src/cloud` + `state/CloudContext.tsx`)
-- `CloudBackend` (`types.ts`) has two implementations: `drive.ts`/`driveStore.ts` (Google Identity Services +
-  Drive REST, `drive.file` scope) and `mock.ts`. `getBackend()` in `index.ts` lazy-imports one of them. Keep the
-  `import.meta.env.DEV && import.meta.env.VITE_CLOUD_MOCK === 'true'` check written inline there so production
-  builds drop the mock.
-- `documents.ts` maps `ProgressState` to documents: `progress` (mastered, goals, onboarded, weight goal, units)
-  plus one `day:YYYY-MM-DD` per day with workouts, logged sets or a weigh-in. `diffDocs` produces the minimal
-  `SaveOps`. Drive files are found by `appProperties`, not by name.
-- `syncEngine.ts` reconciles on sign-in (upload, download or merge), debounces pushes of changed docs, pulls on
-  return to the app, and goes into `reconnect` status when the roughly 1-hour access token expires.
+### Cloud sync (core `cloud/` + web `apps/web/src/cloud` and `state/CloudContext.tsx`)
+- Core has the format and the engine: `documents.ts` maps `ProgressState` to documents (`progress` with
+  mastered, goals, onboarded, weight goal and units, plus one `day:YYYY-MM-DD` per day with workouts, logged
+  sets or a weigh-in); `diffDocs` produces the minimal `SaveOps`; `merge.ts` merges losslessly (union of logs by
+  id, earliest mastery date, workouts by `startedAt`); `driveStore.ts` is the Drive REST layer (files found by
+  `appProperties`, not by name); `syncEngine.ts` reconciles on sign-in (upload, download or merge), debounces
+  pushes of changed docs, pulls on return to the app, and goes into `reconnect` status when the roughly 1-hour
+  access token expires.
+- The web app supplies the rest: `CloudBackend` implementations `drive.ts` (Google Identity Services, `drive.file`
+  scope) and `mock.ts`, `getBackend()` in `index.ts` (keep the `import.meta.env.DEV && import.meta.env.VITE_CLOUD_MOCK
+  === 'true'` check written inline there so production builds drop the mock), and `metaStore.ts` (the engine's
+  bookkeeping in localStorage).
 - There's no refresh token (no backend), and Google only issues a new token in response to a user gesture.
   `CloudContext` renews access on the next `click` (capture phase) once it's within 5 minutes of expiring
-  (`backend.accessExpiresAt`), unless "Stay connected" is off (`ascent:auto-reconnect`, per device). It shares
-  an in-flight renewal with the Reconnect button and only shows the Reconnect toast if renewal fails. Listen
-  to `click`, not `pointerdown`: a touch `pointerdown` isn't a user activation, so the Google window would be
+  (`backend.accessExpiresAt`), unless "Stay connected" is off (`ascent:auto-reconnect`, per device). Listen to
+  `click`, not `pointerdown`: a touch `pointerdown` isn't a user activation, so the Google window would be
   blocked on phones.
-  `merge.ts` merges losslessly (union of logs by id, earliest mastery date, workouts by `startedAt`).
+- The mobile app supplies its own: `apps/mobile/src/cloud/googleDrive.ts` (native Google Sign-In,
+  `@react-native-google-signin/google-signin`, `drive.file` scope, over core's `driveStore`; uid is the Google
+  account id, the same as the web's `sub`), `mock.ts` (`EXPO_PUBLIC_CLOUD_MOCK=true`, dev only), and `local.ts`
+  (MetaStore and Drive content cache: AsyncStorage loaded into memory, since core reads them synchronously).
+  `state/CloudContext.tsx` mirrors the web one: pull on `AppState` active, `NetInfo` for offline/online, "Sync
+  now" pushes then pulls, and a lapsed token is first renewed silently (the native SDKs keep a refresh token).
+  On Android, `getTokens()` keeps returning a cached token, so `onUnauthorized` calls `clearCachedAccessToken`.
+- Google client ids for the phone come from `apps/mobile/.env.local` (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` = the
+  web's client id, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`). They must be in the same Cloud project as the web client
+  so `drive.file` lets every client see the same files. Android also needs an Android OAuth client with the
+  signing key's SHA-1. `app.config.ts` adds the sign-in config plugin only when there's an iOS client id: with
+  no options the plugin assumes Firebase and breaks Android builds.
 - **Adding a field to `ProgressState`** means updating the type, `initialProgress`, the reducer and
   `sanitizeProgress` in `progress.ts`; `toDocs`/`fromDocs` in `documents.ts`; and `emptyProgress`, `isPristine`
   and `mergeProgress` in `merge.ts`. Otherwise the field won't survive a reload, an import or a sync.
 
-### UI
-- Hash router in `src/lib/router.ts` (`#/trees/<tree>/<skill>`, `#/workout/<tree,tree>`, …). A new route needs
+### Web UI (`apps/web/src`)
+- Hash router in `lib/router.ts` (`#/trees/<tree>/<skill>`, `#/workout/<tree,tree>`, …). A new route needs
   the `Route` union, `parseHash`, `toHash`, and the title map and render switch in `App.tsx`.
-- `SkillMap` uses React Flow (`@xyflow/react`) with dagre layout. Prerequisites from other trees appear as
-  "ghost" nodes. Nodes are rebuilt on every progress change, so each must carry `measured` (its fixed layout
-  size): without it React Flow drops the node's handle bounds and hides every edge until it re-measures, which
-  shows up as the whole map flickering after "Mark mastered".
+- `SkillMap` uses React Flow (`@xyflow/react`) with dagre layout (`lib/layout.ts`). Prerequisites from other trees
+  appear as "ghost" nodes. Nodes are rebuilt on every progress change, so each must carry `measured` (its fixed
+  layout size): without it React Flow drops the node's handle bounds and hides every edge until it re-measures,
+  which shows up as the whole map flickering after "Mark mastered".
+- Speech goes through `lib/announcer.ts` (`speechSynthesis`); its on/off and demo-video preferences are per device
+  in localStorage (`ascent:guide`). `StreakReminder` (mounted once in `App.tsx`) shows the in-app reminder and,
+  if enabled on this device, browser notifications.
+- Signing out clears this device's progress and the started workout (`clearActiveWorkout`). Home starts a workout
+  without the Workout page mounted by writing the snapshot (`saveActiveWorkout`).
+- Provider order in `main.tsx`: `ProgressProvider > ToastProvider > CloudProvider`. Cloud depends on progress.
 - The Privacy Policy and Terms (`pages/LegalPages.tsx`, `#/privacy` and `#/terms`) describe exactly what the app
   stores and sends. Update them and `LEGAL_UPDATED` (`data/legal.ts`) when that changes: new data, a new
   Google scope, or a new third-party service.
 - Pages that copy progress into local state when they open (e.g. `StartPage`'s snapshot) must re-sync when it's
   replaced underneath them: signing in or a sync from another device can happen while the page is open.
-- Styles are plain CSS in `src/styles/`, with design tokens in `base.css` (dark theme only). Icons come from
+- Styles are plain CSS in `styles/`, with design tokens in `base.css` (dark theme only). Icons come from
   `lucide-react`.
+
+### Mobile UI (`apps/mobile/src`)
+- Expo Router: every file in `app/` is a screen. `(tabs)/` holds Today, Skills, History and Me; `tree/[id]`,
+  `exercise/[id]` and the full-screen `workout` player sit on the root stack. `_layout.tsx` loads saved state
+  (`ProgressProvider`, `ActiveWorkoutProvider`, `PrefsProvider` in `state/`) before showing anything.
+- Colors mirror the web tokens in `theme.ts` (dark only); shared controls are in `components/ui.tsx`; icons come
+  from `@expo/vector-icons` (Ionicons).
+- Use `role` and `aria-*` props for accessibility, not the older `accessibilityRole`/`accessibilityState`:
+  react-native-web drops those, and the phones read both.
+- The voice coach is `expo-speech` (`lib/coach.ts`, on/off in `ascent:prefs:v1`, per device); the player keeps
+  the screen on with `useKeepAwake`. `lib/dialogs.ts` wraps `Alert` because it does nothing on web.
+- No emulator is needed to check screens: `npx expo export --platform web` renders the same React Native UI in a
+  browser.
+- Native modules (Google Sign-In) need a **development build** (`expo-dev-client`); Expo Go doesn't have them.
+  `cloud/index.ts` checks `TurboModuleRegistry.get('RNGoogleSignin')` before loading the Google backend, because
+  importing it without the native half throws. Build locally with `npm run android -w @ascent/mobile`
+  (`expo run:android`; needs JDK 17 and `ANDROID_HOME`) or in the cloud with EAS (`eas.json`: `development`,
+  `ios-simulator`, `preview`, `production`). `android/` and `ios/` are generated by prebuild and gitignored.
+- The Android emulator on Windows needs Windows Hypervisor Platform (`emulator -accel-check`). The AVD here is
+  `Pixel_8_API_36` (Google Play image, so Google sign-in works).
+- **Don't run the app from a OneDrive folder.** OneDrive turns synced files into reparse points, which Node lists
+  as symlinks, so Metro can't see them ("Unable to resolve react/jsx-runtime" although the file exists).
+- **Windows path limit in native Android builds.** CMake names object files after their full source path, past 260
+  characters. `plugins/withShortCmakeObjectPaths.js` sets `CMAKE_OBJECT_PATH_MAX=255` (Android builds don't get
+  CMake's Windows default; a lower value leaves no room for the hash and CMake gives up), which needs the repo
+  root to be at most about 27 characters (worst case: react-native-gesture-handler's codegen, which Expo Router
+  loads, so it can't be excluded). A `subst` drive doesn't work: Gradle mixes the two roots. `expo run:android`
+  only prebuilds when `android/` is missing, so delete it after config or plugin changes.
