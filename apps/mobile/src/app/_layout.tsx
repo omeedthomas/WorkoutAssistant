@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useOutsideTheApp } from '../lib/useOutsideTheApp';
 import { ActiveWorkoutProvider } from '../state/ActiveWorkoutContext';
 import { CloudProvider } from '../state/CloudContext';
 import { PrefsProvider } from '../state/PrefsContext';
@@ -14,6 +15,12 @@ const loading = (
   </View>
 );
 
+/** Reminders and the home screen widget (see useOutsideTheApp). */
+function OutsideTheApp() {
+  useOutsideTheApp();
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -22,6 +29,7 @@ export default function RootLayout() {
         <ActiveWorkoutProvider>
           <CloudProvider>
             <PrefsProvider>
+              <OutsideTheApp />
               <Stack
                 screenOptions={{
                   headerStyle: { backgroundColor: colors.bg },

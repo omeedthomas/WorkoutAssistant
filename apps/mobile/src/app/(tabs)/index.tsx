@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { treeById, trees, type TreeId } from '@ascent/core/data';
 import { DEFAULT_BODY_KG, workoutCalories } from '@ascent/core/lib/calories';
 import { formatDay } from '@ascent/core/lib/format';
-import { bodyWeightOn, daySummaries, dayTotals, streakOf, trainedDays } from '@ascent/core/lib/history';
+import { bodyWeightOn, daySummaries, dayTotals, streakOf, trainedDays, workoutDone } from '@ascent/core/lib/history';
 import { focusTitle, generateWorkout, LENGTHS, minutesByLength, sortFocus, suggestSplit, type WorkoutLength } from '@ascent/core/lib/workout';
 import { workoutProgress } from '@ascent/core/state/activeWorkout';
 import { localDay } from '@ascent/core/state/progress';
@@ -28,7 +28,7 @@ export default function TodayScreen() {
   const kcal = workoutCalories(workout, bodyWeightOn(state) ?? DEFAULT_BODY_KG);
   const streak = useMemo(() => streakOf(trainedDays(state), today), [state, today]);
   const summary = useMemo(() => daySummaries(state).get(today), [state, today]);
-  const trainedToday = !!summary && (summary.sessions.length > 0 || summary.workouts.some((w) => w.finishedAt && !w.routine));
+  const trainedToday = workoutDone(summary);
 
   const setPlan = (nextFocus: TreeId[], nextLength: WorkoutLength) =>
     nextFocus.length && setWorkoutPlan({ focus: sortFocus(nextFocus), length: nextLength });

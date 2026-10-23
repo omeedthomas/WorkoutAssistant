@@ -4,7 +4,7 @@ import { treeById, trees, type TreeId } from '@ascent/core/data';
 import { splits } from '@ascent/core/data/splits';
 import { dayCalories, DEFAULT_BODY_KG, workoutCalories } from '@ascent/core/lib/calories';
 import { formatWork, pct } from '@ascent/core/lib/format';
-import { bodyWeightOn, daySummaries, dayTotals, type DaySummary } from '@ascent/core/lib/history';
+import { bodyWeightOn, daySummaries, dayTotals, workoutDone, type DaySummary } from '@ascent/core/lib/history';
 import { navigate, skillHref, toHash } from '../lib/router';
 import { focusTitle, generateWorkout, LENGTHS, minutesByLength, sameFocus, sortFocus, type WorkoutLength } from '@ascent/core/lib/workout';
 import { loadActiveWorkout, saveActiveWorkout, snapshot, workoutProgress, type ActiveWorkout } from '../state/activeWorkout';
@@ -43,8 +43,7 @@ export function TodayCard() {
   }
   if (active) return <InProgress active={active} />;
   // A morning mobility routine isn't the day's workout, so it doesn't count as done here.
-  const trained = !!summary && (summary.sessions.length > 0 || summary.workouts.some((w) => w.finishedAt && !w.routine));
-  if (summary && trained) return <GreatJob summary={summary} plan={plan} onEdit={() => setEditing(true)} />;
+  if (summary && workoutDone(summary)) return <GreatJob summary={summary} plan={plan} onEdit={() => setEditing(true)} />;
   return <PlannedWorkout plan={plan} onEdit={() => setEditing(true)} />;
 }
 

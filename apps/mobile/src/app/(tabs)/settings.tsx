@@ -1,9 +1,10 @@
 import Constants from 'expo-constants';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { exercises } from '@ascent/core/data';
 import type { Units } from '@ascent/core/lib/units';
+import { RemindersCard } from '../../components/RemindersCard';
 import { SyncCard } from '../../components/SyncCard';
-import { Button, Card, Screen, SectionTitle, Segmented } from '../../components/ui';
+import { Button, Card, Screen, SectionTitle, Segmented, Toggle } from '../../components/ui';
 import { confirm } from '../../lib/dialogs';
 import { useActiveWorkout } from '../../state/ActiveWorkoutContext';
 import { usePrefs } from '../../state/PrefsContext';
@@ -43,14 +44,11 @@ export default function SettingsScreen() {
           <Text style={type.heading}>Voice coach</Text>
           <Text style={type.small}>Reads out each set, rest and countdown during workouts.</Text>
         </View>
-        <Switch
-          value={prefs.voice}
-          onValueChange={(voice) => setPrefs({ voice })}
-          trackColor={{ true: colors.accent, false: colors.surface3 }}
-          thumbColor={colors.text}
-          aria-label="Voice coach"
-        />
+        <Toggle label="Voice coach" value={prefs.voice} onChange={(voice) => setPrefs({ voice })} />
       </Card>
+
+      <SectionTitle>Reminders</SectionTitle>
+      <RemindersCard />
 
       <SectionTitle>Google Drive sync</SectionTitle>
       <SyncCard />

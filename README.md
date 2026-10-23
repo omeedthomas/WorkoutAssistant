@@ -148,7 +148,9 @@ npm run check:videos  # confirms every how-to video still exists and allows embe
 ```
 
 `apps/web/dist/` is a static site. Host it anywhere (Netlify, Vercel, GitHub Pages, or any static server). It
-uses hash routing (`#/trees/push/pushup`), so no server rewrites are needed.
+uses hash routing (`#/trees/push/pushup`), so no server rewrites are needed. Build from the repo root, since the
+web app imports `packages/core`. Vercel picks this up from `vercel.json`; on other hosts set the build command to
+`npm run build` and the output directory to `apps/web/dist`.
 
 ### The phone app (`apps/mobile`)
 
@@ -161,16 +163,23 @@ A native Android and iOS app built with [Expo](https://expo.dev) (React Native),
   exercises are logged automatically.
 - **Skills:** every tree, its progressions as ladders, and each exercise's plan, logger, history, cues and
   how-to video.
-- **History** and **Me** (Google Drive sync, units, voice coach, reset).
+- **History** and **Me** (Google Drive sync, units, voice coach, reminders, reset).
+- **Reminders:** a notification on your streak's last day (6 pm and 10 pm, until you train) and an optional
+  daily reminder at a time you pick, skipped once you've trained. The phone schedules them itself, so they work
+  offline and nothing goes through a server.
+- **Home screen widget (Android):** your streak and today's workout (or the one in progress) at a glance. Tap it
+  to open Today. Long-press the home screen → Widgets → Ascent to add it.
 
 It uses the same progression engine, workout generator and saved format as the web app, and syncs with the
 same Google Drive files (see below).
 
-> **Keep the project out of OneDrive, at a short path.** OneDrive turns files it has synced into placeholders
-> that Node reports as symbolic links, and the app's bundler (Metro) then can't see them ("Unable to resolve
-> react/jsx-runtime"). It also uploads gigabytes of `node_modules` and Android build files. And Android's native
-> build names files after their full path, so on Windows (260-character limit) the repo folder should be at most
-> about 25 characters long. Clone it to something like `C:\dev\WorkoutAssistant`.
+> **In OneDrive, keep the folder on this device.** The app's bundler (Metro) can't see files that OneDrive has
+> made online-only ("Unable to resolve react/jsx-runtime"), so right-click the project folder → **Always keep on
+> this device**. Building the native Android app (`npm run android`) also needs a short folder path, because
+> Android's native build names files after their full path and Windows stops at 260 characters: the repo folder
+> must be at most about 25 characters long, like `C:\dev\WorkoutAssistant`. From a longer path, build it in the
+> cloud with EAS instead (see below). That's only needed when native packages or `app.json` plugins change;
+> otherwise `npm run mobile` is enough.
 
 **Try it on your phone (no Mac or Android Studio needed):** install **Expo Go** from the App Store or Google
 Play, run `npm run mobile` on your computer, and scan the QR code (with the Camera app on iPhone, or Expo Go on
@@ -229,7 +238,8 @@ and can see each other's files:
 
 1. **APIs & Services → Credentials → Create credentials → OAuth client ID → Android:** package name
    `com.omeedthomas.ascent`, SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` (the development
-   build's debug key; add your release key's SHA-1 too before publishing).
+   build's debug key; add your release key's SHA-1 too before publishing). Its client id isn't needed anywhere:
+   Google recognizes the app by its package name and signing key.
 2. **iOS** (only for iPhone builds): another OAuth client ID of type iOS with bundle ID `com.omeedthomas.ascent`.
 3. Copy `apps/mobile/.env.example` to `apps/mobile/.env.local` and set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` to the
    website's client id (the same value as `VITE_GOOGLE_CLIENT_ID`), and `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` to the
@@ -286,7 +296,7 @@ never the rest of anyone's Drive. Google classes this as a non-sensitive scope.
 7. **When you're ready for others:**
    - Set `VITE_CONTACT_EMAIL` in `.env.local`. This is the contact address shown on the Privacy Policy and
      Terms of Service pages.
-   - Build, then deploy the `dist/` folder to any HTTPS static host (Netlify, Vercel, Cloudflare Pages,
+   - Build, then deploy the `apps/web/dist/` folder to any HTTPS static host (Netlify, Vercel, Cloudflare Pages,
      GitHub Pages…). Add that address to the authorized JavaScript origins.
    - On the *Branding* page, fill in the home page (`https://<your-site>/`), privacy policy
      (`https://<your-site>/#/privacy`) and terms of service (`https://<your-site>/#/terms`) links, and add

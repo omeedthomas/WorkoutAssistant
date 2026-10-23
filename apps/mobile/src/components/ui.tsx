@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { colors, radius, space, type } from '../theme';
 
@@ -121,6 +121,23 @@ export function ProgressBar({ value, color = colors.accent, height = 6 }: { valu
     <View style={[styles.track, { height }]}>
       <View style={{ width: `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`, height, backgroundColor: color, borderRadius: height }} />
     </View>
+  );
+}
+
+/**
+ * An on/off switch. React Native's Switch hands `aria-label` to the native view unconverted, so the phones never
+ * read it: they get `accessibilityLabel` as well (react-native-web only reads `aria-label`).
+ */
+export function Toggle({ value, onChange, label }: { value: boolean; onChange: (on: boolean) => void; label: string }) {
+  return (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      trackColor={{ true: colors.accent, false: colors.surface3 }}
+      thumbColor={colors.text}
+      aria-label={label}
+      {...(Platform.OS !== 'web' && { accessibilityLabel: label })}
+    />
   );
 }
 

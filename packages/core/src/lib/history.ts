@@ -58,6 +58,14 @@ export function daySummaries(state: ProgressState): Map<string, DaySummary> {
   return days;
 }
 
+/**
+ * Whether the day's workout is done: something was logged, or a workout was finished. Unlike `trained`, a
+ * morning mobility routine doesn't count, since it isn't the day's workout.
+ */
+export function workoutDone(summary: DaySummary | undefined): boolean {
+  return !!summary && (summary.sessions.length > 0 || summary.workouts.some((w) => w.finishedAt && !w.routine));
+}
+
 export function trainedDays(state: ProgressState): string[] {
   return [...daySummaries(state).values()].filter((s) => s.trained).map((s) => s.day);
 }

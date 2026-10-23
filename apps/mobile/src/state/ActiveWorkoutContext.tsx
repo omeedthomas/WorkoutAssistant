@@ -3,7 +3,7 @@ import type { Workout } from '@ascent/core/lib/workout';
 import { restoreActiveWorkout, snapshot, type ActiveExercise, type ActiveWorkout } from '@ascent/core/state/activeWorkout';
 import { readJson, writeJson } from './storage';
 
-const STORAGE_KEY = 'ascent:workout:v1';
+export const WORKOUT_KEY = 'ascent:workout:v1';
 
 export interface ActiveWorkoutApi {
   /** Today's started workout, if any. It's a snapshot, so logging mid-workout doesn't reshuffle it. */
@@ -23,14 +23,14 @@ export function ActiveWorkoutProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    void readJson(STORAGE_KEY).then((raw) => {
+    void readJson(WORKOUT_KEY).then((raw) => {
       setActive(restoreActiveWorkout(raw));
       setLoaded(true);
     });
   }, []);
 
   useEffect(() => {
-    if (loaded) void writeJson(STORAGE_KEY, active);
+    if (loaded) void writeJson(WORKOUT_KEY, active);
   }, [active, loaded]);
 
   const api = useMemo<ActiveWorkoutApi>(

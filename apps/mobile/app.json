@@ -25,6 +25,40 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "./plugins/withShortCmakeObjectPaths"]
+    "plugins": [
+      "expo-router",
+      "./plugins/withShortCmakeObjectPaths",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7c9cff"
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Today",
+              "label": "Today",
+              "description": "Your streak and today's workout",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "60173602-35a4-418d-8897-8a9052c77097"
+      }
+    },
+    "owner": "aothomas"
   }
 }

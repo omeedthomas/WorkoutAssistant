@@ -5,10 +5,16 @@ import { readJson, writeJson } from './storage';
 export interface Prefs {
   /** The voice coach reads out each set, rest and countdown. */
   voice: boolean;
+  /** Notifications on a streak's last day (see `upcomingReminders` in core). */
+  streakReminders: boolean;
+  /** A local hour for a daily reminder to train, or null for none. */
+  dailyReminderHour: number | null;
 }
 
 const STORAGE_KEY = 'ascent:prefs:v1';
-const DEFAULTS: Prefs = { voice: true };
+const DEFAULTS: Prefs = { voice: true, streakReminders: false, dailyReminderHour: null };
+
+const isHour = (h: unknown): h is number => Number.isInteger(h) && (h as number) >= 0 && (h as number) <= 23;
 
 const PrefsContext = createContext<{ prefs: Prefs; setPrefs: (p: Partial<Prefs>) => void } | null>(null);
 
@@ -19,7 +25,11 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void readJson(STORAGE_KEY).then((raw) => {
       const saved = raw && typeof raw === 'object' ? (raw as Partial<Prefs>) : {};
-      set({ voice: typeof saved.voice === 'boolean' ? saved.voice : DEFAULTS.voice });
+      set({
+        voice: typeof saved.voice === 'boolean' ? saved.voice : DEFAULTS.voice,
+        streakReminders: saved.streakReminders === true,
+        dailyReminderHour: isHour(saved.dailyReminderHour) ? saved.dailyReminderHour : null,
+      });
       setLoaded(true);
     });
   }, []);

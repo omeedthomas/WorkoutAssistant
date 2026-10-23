@@ -17,7 +17,7 @@ import {
 import { readJson, writeJson } from './storage';
 
 /** Same key and format as the web app, so a future Drive sync reads and writes the same documents. */
-const STORAGE_KEY = 'ascent:progress:v1';
+export const PROGRESS_KEY = 'ascent:progress:v1';
 
 export interface ProgressApi {
   state: ProgressState;
@@ -48,7 +48,7 @@ export function ProgressProvider({ children, fallback }: { children: ReactNode; 
   const skipSave = useRef(true);
 
   useEffect(() => {
-    void readJson(STORAGE_KEY).then((raw) => {
+    void readJson(PROGRESS_KEY).then((raw) => {
       const saved = raw === null ? null : sanitizeProgress(raw);
       if (saved) dispatch({ type: 'replace', state: saved });
       setLoaded(true);
@@ -62,7 +62,7 @@ export function ProgressProvider({ children, fallback }: { children: ReactNode; 
       skipSave.current = false;
       return;
     }
-    void writeJson(STORAGE_KEY, state);
+    void writeJson(PROGRESS_KEY, state);
   }, [state, loaded]);
 
   const api = useMemo<ProgressApi>(() => {
