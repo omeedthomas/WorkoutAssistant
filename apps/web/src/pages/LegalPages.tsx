@@ -76,8 +76,9 @@ export function PrivacyPage() {
         <h3>In your browser</h3>
         <p>
           Everything you do in Ascent is saved in your browser's local storage on your device: the skills you've mastered,
-          your goals, every session you log (sets, reps or hold times, and any added weight), the workouts you start and
-          finish (with their times and calorie estimates), your body-weight entries and weight goal, your workout plan, and
+          your goals, every session you log (sets, the reps or hold time of each set, any added weight, and whether you said
+          it was too easy or too hard), the workouts you start and finish (with their times, calorie estimates and how you
+          rated them), your body-weight entries and weight goal, your workout plan, and
           preferences such as weight units and reminder settings. This stays on your device unless you sign in or export a
           backup.
         </p>

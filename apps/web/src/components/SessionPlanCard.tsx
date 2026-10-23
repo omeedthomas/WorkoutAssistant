@@ -13,6 +13,8 @@ export const planKindLabel: Record<PlanKind, string> = {
   return: 'Ease back in',
   mastery: 'Mastery',
   maintain: 'Maintain',
+  easier: 'Easier',
+  harder: 'Harder',
 };
 
 interface Props {

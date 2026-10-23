@@ -4,6 +4,7 @@ import { routineSeconds, type Routine } from '../data/routines';
 import type { ActiveWorkout } from '../state/activeWorkout';
 import type { WorkoutRecord } from '../state/progress';
 import { sessionsByWorkout, type DaySession, type DaySummary } from './history';
+import { averageSet } from './sets';
 import { exerciseSeconds, LENGTHS, type Workout } from './workout';
 
 /**
@@ -35,7 +36,7 @@ export function activeCalories(w: ActiveWorkout, kg: number): number {
   const ticked = (ids: string[]) => drillSeconds(ids.filter((id) => w.checked.includes(id)).map((id) => drillById[id]));
   const main = w.main.reduce((s, m) => {
     const ex = exerciseById[m.exerciseId];
-    return m.logged && ex ? s + exerciseSeconds(ex, m.logged.sets, m.logged.value) : s;
+    return m.logged && ex ? s + exerciseSeconds(ex, m.logged.sets, averageSet(m.logged)) : s;
   }, 0);
   return Math.round(kcal(MET.warmup, kg, ticked(w.warmup)) + kcal(MET.main, kg, main) + kcal(MET.cooldown, kg, ticked(w.cooldown)));
 }
@@ -47,7 +48,8 @@ export function routineCalories(r: Routine, kg: number): number {
 
 /** Logged sessions, outside of any planned workout. */
 export function sessionsCalories(sessions: DaySession[], kg: number): number {
-  const seconds = sessions.reduce((s, { exercise, log }) => s + exerciseSeconds(exercise, log.sets, log.value), 0);
+  // Time is linear in reps, so the average set gives every set's time added up.
+  const seconds = sessions.reduce((s, { exercise, log }) => s + exerciseSeconds(exercise, log.sets, averageSet(log)), 0);
   return Math.round(kcal(MET.main, kg, seconds));
 }
 

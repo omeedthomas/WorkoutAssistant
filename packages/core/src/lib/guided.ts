@@ -33,6 +33,8 @@ export interface GuidedStep {
   seconds?: number;
   /** Rep steps: what to do, e.g. "12 reps", "10 reps each side", "10 each direction". */
   reps?: string;
+  /** Exercises: the planned reps (or seconds) per set. The players log it for each set unless you change it. */
+  value?: number;
   /** Weighted exercises: the added weight, e.g. "+10 lb", and how to say it. */
   load?: { text: string; spoken: string };
   /** Rest after this step, in seconds. 0 goes straight on (e.g. switching sides, or one drill to the next). */
@@ -103,6 +105,7 @@ export function guidedSteps(w: ActiveWorkout, units: Units): GuidedStep[] {
       ...(m.setup && { setup: m.setup }),
       ...(load && { load }),
       sets: m.sets,
+      value: m.value,
     };
     for (let set = 1; set <= m.sets; set++) {
       const rest = set < m.sets ? restSeconds(ex) : 0;
@@ -147,6 +150,11 @@ export function spokenDuration(seconds: number): string {
   if (!m) return sec;
   const min = `${m} ${m === 1 ? 'minute' : 'minutes'}`;
   return s ? `${min} ${sec}` : min;
+}
+
+/** How much a step asks for, written out: "10 reps", "8 reps each side", "10 each direction", "45 seconds". */
+export function workLabel(step: GuidedStep): string {
+  return step.seconds !== undefined ? spokenDuration(step.seconds) : (step.reps ?? '');
 }
 
 /** A timer readout: "0:45", "2:00". */

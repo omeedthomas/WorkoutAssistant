@@ -1,4 +1,4 @@
-import { exerciseById, treeById, type Equipment, type TreeId } from '../data';
+import { exerciseById, exercises, trackByKey, treeById, type Equipment, type TreeId } from '../data';
 import { equipmentById } from '../data/equipment';
 import { routineById } from '../data/routines';
 import type { Units } from '../lib/units';
@@ -7,25 +7,34 @@ import type { WorkoutLength } from '../lib/workout';
 /** What was done (or planned) in one session: sets of reps or seconds, plus any added weight. */
 export interface Work {
   sets: number;
-  /** Reps or seconds per set. */
+  /** Reps or seconds per set. When the sets differed (`perSet`), the lowest: what every set reached. */
   value: number;
+  /** Reps or seconds of each set, in order, when they weren't all the same (see `lib/sets.ts`). */
+  perSet?: number[];
   /** Weighted exercises: added weight in kg (0 = none). */
   addedKg?: number;
 }
 
-export interface LogEntry {
+/** You said a session was too easy or too hard: the next plan for that exercise steps up or eases off. */
+export type Feel = 'easy' | 'hard';
+export const FEELS: Feel[] = ['easy', 'hard'];
+
+/** How a whole workout felt, asked when you finish it. */
+export type WorkoutRating = 'easy' | 'right' | 'hard';
+export const WORKOUT_RATINGS: WorkoutRating[] = ['easy', 'right', 'hard'];
+
+export interface LogEntry extends Work {
   id: string;
   /** ISO timestamp. */
   date: string;
   /** The local calendar day it was logged on (YYYY-MM-DD), so every device files it under the same day. */
   day?: string;
-  sets: number;
-  /** Reps or seconds achieved in each set. */
-  value: number;
-  /** Weighted exercises: added weight in kg (0 = none). */
-  addedKg?: number;
   /** What the app suggested for this session, so we can tell a hit from a miss. */
   planned?: Work;
+  /** Too easy or too hard, if you said so after the workout. */
+  feel?: Feel;
+  /** When the numbers or the feel were last changed (ISO), so the newest change wins across devices. */
+  edited?: string;
 }
 
 /** A workout started from the Workout page. */
@@ -37,6 +46,8 @@ export interface WorkoutRecord {
   finishedAt?: string;
   /** Estimated calories burned, worked out when the workout is finished. */
   kcal?: number;
+  /** How it felt, if you said when you finished it. */
+  rating?: WorkoutRating;
   /** Set for a daily mobility routine (its id in `data/routines.ts`) rather than a training workout. */
   routine?: string;
 }
@@ -118,11 +129,13 @@ export type ProgressAction =
   | { type: 'unmaster'; id: string }
   | { type: 'log'; exerciseId: string; entry: LogEntry }
   | { type: 'deleteLog'; exerciseId: string; logId: string }
+  | { type: 'editLog'; exerciseId: string; logId: string; work: Work; at: string }
+  | { type: 'rateLog'; exerciseId: string; logId: string; feel: Feel | null; at: string }
   | { type: 'toggleGoal'; id: string }
   | { type: 'applyStartingPoint'; master: string[]; unmaster: string[]; at: string }
   | { type: 'setOnboarded' }
   | { type: 'recordWorkout'; day: string; record: WorkoutRecord }
-  | { type: 'finishWorkout'; day: string; startedAt: string; at: string; kcal?: number }
+  | { type: 'finishWorkout'; day: string; startedAt: string; at: string; kcal?: number; rating?: WorkoutRating }
   | { type: 'removeWorkout'; day: string; startedAt: string }
   | { type: 'logWeight'; day: string; entry: WeighIn }
   | { type: 'deleteWeight'; day: string }
@@ -175,6 +188,35 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
       return { ...state, logs };
     }
 
+    case 'editLog': {
+      const existing = state.logs[action.exerciseId];
+      if (!existing?.some((l) => l.id === action.logId)) return state;
+      const w = action.work;
+      const list = existing.map((l): LogEntry => {
+        if (l.id !== action.logId) return l;
+        const entry: LogEntry = { ...l, sets: w.sets, value: w.value, edited: action.at };
+        if (w.perSet) entry.perSet = w.perSet;
+        else delete entry.perSet;
+        if (w.addedKg !== undefined) entry.addedKg = w.addedKg;
+        else delete entry.addedKg;
+        return entry;
+      });
+      return { ...state, logs: { ...state.logs, [action.exerciseId]: list } };
+    }
+
+    case 'rateLog': {
+      const existing = state.logs[action.exerciseId];
+      if (!existing?.some((l) => l.id === action.logId)) return state;
+      const list = existing.map((l): LogEntry => {
+        if (l.id !== action.logId) return l;
+        const entry: LogEntry = { ...l, edited: action.at };
+        if (action.feel) entry.feel = action.feel;
+        else delete entry.feel;
+        return entry;
+      });
+      return { ...state, logs: { ...state.logs, [action.exerciseId]: list } };
+    }
+
     case 'toggleGoal': {
       if (state.goals.includes(action.id)) {
         return { ...state, goals: state.goals.filter((g) => g !== action.id) };
@@ -210,7 +252,12 @@ export function progressReducer(state: ProgressState, action: ProgressAction): P
         action.day,
         list.map((w) =>
           w.startedAt === action.startedAt
-            ? { ...w, finishedAt: action.at, ...(action.kcal !== undefined && { kcal: action.kcal }) }
+            ? {
+                ...w,
+                finishedAt: action.at,
+                ...(action.kcal !== undefined && { kcal: action.kcal }),
+                ...(action.rating && { rating: action.rating }),
+              }
             : w,
         ),
       );
@@ -289,7 +336,14 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
         if (!isPositive(l.sets) || !isPositive(l.value)) continue;
         const entry: LogEntry = { id: l.id, date: l.date, sets: l.sets, value: l.value };
         if (typeof l.day === 'string' && DAY_RE.test(l.day)) entry.day = l.day;
+        // Each set's reps must match the set count; `value` then follows from them.
+        if (Array.isArray(l.perSet) && l.perSet.length === l.sets && l.perSet.every(isPositive)) {
+          entry.perSet = [...l.perSet];
+          entry.value = Math.min(...l.perSet);
+        }
         if (isLoad(l.addedKg)) entry.addedKg = l.addedKg;
+        if (FEELS.includes(l.feel as Feel)) entry.feel = l.feel as Feel;
+        if (typeof l.edited === 'string') entry.edited = l.edited;
         const p = l.planned;
         if (isRecord(p) && isPositive(p.sets) && isPositive(p.value)) {
           entry.planned = { sets: p.sets, value: p.value, ...(isLoad(p.addedKg) && { addedKg: p.addedKg }) };
@@ -298,6 +352,18 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
       }
       if (valid.length) logs[id] = valid.slice(0, MAX_LOGS_PER_EXERCISE);
     }
+  }
+
+  // A step added to a progression later (`addedAt`) never sends anyone back down it: if you'd already reached a
+  // later step of its track (mastered or logged one), it counts as mastered from then.
+  for (const ex of exercises) {
+    if (!ex.addedAt || mastered[ex.id]) continue;
+    const reached = trackByKey[ex.track].steps
+      .slice(ex.step + 1)
+      .flatMap((s) => [mastered[s.id], ...(logs[s.id] ?? []).map((l) => l.date)])
+      .filter((d): d is string => !!d)
+      .sort();
+    if (reached.length) mastered[ex.id] = reached[0];
   }
 
   const goals = Array.isArray(raw.goals)
@@ -323,6 +389,7 @@ export function sanitizeProgress(raw: unknown): ProgressState | null {
         };
         if (typeof w.finishedAt === 'string') record.finishedAt = w.finishedAt;
         if (isPositive(w.kcal)) record.kcal = Math.round(w.kcal);
+        if (WORKOUT_RATINGS.includes(w.rating as WorkoutRating)) record.rating = w.rating as WorkoutRating;
         if (typeof w.routine === 'string' && routineById[w.routine]) record.routine = w.routine;
         valid.push(record);
       }

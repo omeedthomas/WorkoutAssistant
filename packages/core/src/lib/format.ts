@@ -21,9 +21,14 @@ export function formatSet(sets: number, value: number, unit: Unit): string {
   return unit === 'seconds' ? `${sets} × ${value}s` : `${sets} × ${value} ${unitLabel(unit, value)}`;
 }
 
-/** A session of `ex`: "3 × 8 reps", or "3 × 5 reps at +25 lb" on weighted exercises. */
+/** Sets that differed, in order: "10, 9, 8 reps" or "30s, 25s, 20s". */
+export function formatSets(values: number[], unit: Unit): string {
+  return unit === 'seconds' ? values.map((v) => `${v}s`).join(', ') : `${values.join(', ')} ${unitLabel(unit, values[values.length - 1])}`;
+}
+
+/** A session of `ex`: "3 × 8 reps", "10, 9, 8 reps" when the sets differed, or "3 × 5 reps at +25 lb" on weighted exercises. */
 export function formatWork(ex: Exercise, w: Work, units: Units): string {
-  const base = formatSet(w.sets, w.value, ex.target.unit);
+  const base = w.perSet?.length === w.sets ? formatSets(w.perSet, ex.target.unit) : formatSet(w.sets, w.value, ex.target.unit);
   return ex.target.addedKg === undefined ? base : `${base} at ${formatAdded(w.addedKg ?? 0, units)}`;
 }
 

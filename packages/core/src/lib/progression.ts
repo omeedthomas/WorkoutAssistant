@@ -1,6 +1,7 @@
 import { dependentsOf, exerciseById, trackByKey, treeById, type Exercise } from '../data';
 import type { LogEntry, Work } from '../state/progress';
 import { formatSet } from './format';
+import { averageSet } from './sets';
 import { formatAdded, formatWeight, loadStepKg, snapLoad, type Units } from './units';
 
 /**
@@ -21,7 +22,9 @@ export type PlanKind =
   | 'consolidate' // missed several times: extra set at the level below
   | 'return' // long break: ease back in
   | 'mastery' // you've hit the mastery target
-  | 'maintain'; // already mastered
+  | 'maintain' // already mastered
+  | 'easier' // you said the last session was too hard
+  | 'harder'; // you said the last session was too easy
 
 export interface SessionPlan {
   kind: PlanKind;
@@ -74,6 +77,11 @@ export function restFor(ex: Exercise): string {
 }
 
 const added = (w: SetsValue) => w.addedKg ?? 0;
+/**
+ * A typical set of a session, for judging how far short of a plan it fell: 10, 9, 8 against 3 × 10 is a near
+ * miss (go again), not a reason to drop to 8s. Meeting a plan still takes `value`, what every set reached.
+ */
+const typical = (w: SetsValue) => Math.floor(averageSet(w));
 const meets = (done: SetsValue, goal: SetsValue) =>
   done.sets >= goal.sets && done.value >= goal.value && added(done) >= added(goal) - 0.01;
 const same = (a: SetsValue, b: SetsValue) =>
@@ -157,7 +165,7 @@ export function planSession(
 
   const daysAway = Math.floor((now.getTime() - Date.parse(last.date)) / DAY);
   if (daysAway >= RETURN_AFTER_DAYS) {
-    const plan = { sets: Math.min(target.sets, last.sets), value: Math.max(1, last.value - step) };
+    const plan = { sets: Math.min(target.sets, last.sets), value: Math.max(1, typical(last) - step) };
     return make(
       'return',
       plan,
@@ -166,12 +174,32 @@ export function planSession(
     );
   }
 
+  // You said how the last session felt: that beats what the numbers alone suggest.
+  if (last.feel === 'hard') {
+    const plan = { sets: last.sets, value: Math.max(1, typical(last) - step) };
+    return make(
+      'easier',
+      plan,
+      `Easier: ${fmt(plan)}`,
+      `You said ${fmt(last)} was too hard, so this session has ${step} fewer ${unitWord(ex, step)} per set. The plan builds back up from here.`,
+    );
+  }
+  if (last.feel === 'easy') {
+    const plan = { sets: Math.min(target.sets, last.sets + 1), value: Math.min(target.value, typical(last) + 2 * step) };
+    return make(
+      'harder',
+      plan,
+      `Harder: ${fmt(plan)}`,
+      `You said ${fmt(last)} was too easy, so this session jumps ahead to ${fmt(plan)}.`,
+    );
+  }
+
   // Missed the plan? (The very first session is a calibration, never a miss.)
   const planned = last.planned;
   if (planned && logs.length > 1 && !meets(last, planned)) {
     // Way short of the plan: recalibrate from what you actually did.
-    if (last.value < planned.value - 2 * step) {
-      const plan = { sets: Math.max(last.sets, Math.min(target.sets, planned.sets)), value: last.value + step };
+    if (typical(last) < planned.value - 2 * step) {
+      const plan = { sets: Math.max(last.sets, Math.min(target.sets, planned.sets)), value: typical(last) + step };
       return make(
         'reset',
         plan,
@@ -264,6 +292,18 @@ function planMastered(
     sessionsToMastery: sessionsToMastery(ex, plan),
   });
 
+  if (recent && last.feel) {
+    const step = stepFor(ex);
+    const hard = last.feel === 'hard';
+    const plan = { sets: target.sets, value: hard ? Math.max(1, typical(last) - step) : Math.min(cap, typical(last) + 2 * step) };
+    return make(
+      hard ? 'easier' : 'harder',
+      plan,
+      `${hard ? 'Easier' : 'Harder'}: ${fmt(plan)}`,
+      `You said ${fmt(last)} was too ${hard ? 'hard' : 'easy'}, so this session ${hard ? 'eases off' : 'jumps ahead'}: ${fmt(plan)}.`,
+    );
+  }
+
   if (recent && last.planned && meets(last, last.planned) && meets(last, target) && last.value < cap) {
     const plan = { sets: target.sets, value: Math.min(cap, last.value + stepFor(ex)) };
     const more = plan.value - last.value;
@@ -316,7 +356,23 @@ function planWeighted(ex: Exercise, logs: LogEntry[], { mastered, now, units }: 
     sessionsToMastery: sessionsToMastery(ex, plan, units),
   });
 
+  /** You said the last session was too easy or too hard: a plate lighter, or two plates heavier (up to `cap`). */
+  const felt = (cap: number): SessionPlan | null => {
+    if (!last?.feel || Math.floor((now.getTime() - Date.parse(last.date)) / DAY) >= RETURN_AFTER_DAYS) return null;
+    const hard = last.feel === 'hard';
+    const plan = at(hard ? added(last) - step : Math.min(cap, added(last) + 2 * step), Math.min(target.sets, last.sets));
+    const change = hard ? `${plate} lighter` : added(plan) > added(last) + 0.01 ? 'heavier' : 'at the full target';
+    return make(
+      hard ? 'easier' : 'harder',
+      plan,
+      `${hard ? 'Easier' : 'Harder'}: ${fmt(plan)}`,
+      `You said ${fmt(last)} was too ${hard ? 'hard' : 'easy'}, so this session is ${change}: ${fmt(plan)}.`,
+    );
+  };
+
   if (mastered) {
+    const adjusted = felt(Infinity);
+    if (adjusted) return adjusted;
     if (last?.planned && meets(last, last.planned) && added(last) >= goalKg - 0.01) {
       const plan = at(added(last) + step);
       return make('progress', plan, `Add weight: ${fmt(plan)}`, `You did ${fmt(last)} as planned. Keep going past the target: ${plate} more.`);
@@ -361,10 +417,13 @@ function planWeighted(ex: Exercise, logs: LogEntry[], { mastered, now, units }: 
     );
   }
 
+  const adjusted = felt(goalKg);
+  if (adjusted) return adjusted;
+
   const planned = last.planned;
   if (planned && logs.length > 1 && !meets(last, planned)) {
     // Used less weight than planned, or fell well short on reps: drop the weight.
-    if (added(last) < added(planned) - 0.01 || last.value < planned.value - 2) {
+    if (added(last) < added(planned) - 0.01 || typical(last) < planned.value - 2) {
       const plan = at(Math.min(added(last), added(planned) - step), Math.max(last.sets, Math.min(target.sets, planned.sets)));
       return make(
         'reset',
@@ -409,5 +468,5 @@ function planWeighted(ex: Exercise, logs: LogEntry[], { mastered, now, units }: 
 
 /** Whether a plan raises the bar compared with the last session. */
 export function isLevelUp(plan: SessionPlan): boolean {
-  return plan.kind === 'progress' || plan.kind === 'add-set';
+  return plan.kind === 'progress' || plan.kind === 'add-set' || plan.kind === 'harder';
 }

@@ -53,8 +53,12 @@ export function mergeProgress(local: ProgressState, remote: ProgressState): Prog
 
   const logs: Record<string, LogEntry[]> = {};
   for (const id of new Set([...Object.keys(local.logs), ...Object.keys(remote.logs)])) {
+    // The same session on both sides: the most recently corrected copy wins (the cloud's if neither was).
     const byId = new Map<string, LogEntry>();
-    for (const l of [...(remote.logs[id] ?? []), ...(local.logs[id] ?? [])]) if (!byId.has(l.id)) byId.set(l.id, l);
+    for (const l of [...(remote.logs[id] ?? []), ...(local.logs[id] ?? [])]) {
+      const seen = byId.get(l.id);
+      if (!seen || (l.edited ?? '') > (seen.edited ?? '')) byId.set(l.id, l);
+    }
     logs[id] = [...byId.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, MAX_LOGS_PER_EXERCISE);
   }
 
@@ -63,7 +67,10 @@ export function mergeProgress(local: ProgressState, remote: ProgressState): Prog
     const byStart = new Map<string, WorkoutRecord>();
     for (const w of [...(remote.workouts[day] ?? []), ...(local.workouts[day] ?? [])]) {
       const seen = byStart.get(w.startedAt);
-      if (!seen || (!seen.finishedAt && w.finishedAt)) byStart.set(w.startedAt, w);
+      // Prefer the copy that was finished, then the one that says how it felt.
+      if (!seen || (!seen.finishedAt && w.finishedAt) || (!!seen.finishedAt === !!w.finishedAt && !seen.rating && w.rating)) {
+        byStart.set(w.startedAt, w);
+      }
     }
     workouts[day] = [...byStart.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   }

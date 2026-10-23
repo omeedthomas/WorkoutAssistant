@@ -12,10 +12,12 @@ export const planKindLabel: Record<PlanKind, string> = {
   return: 'Ease back in',
   mastery: 'Mastery',
   maintain: 'Maintain',
+  easier: 'Easier',
+  harder: 'Harder',
 };
 
 export const planKindColor = (kind: PlanKind) =>
-  kind === 'progress' || kind === 'add-set' ? colors.success : kind === 'maintain' || kind === 'mastery' ? colors.gold : colors.accent;
+  kind === 'progress' || kind === 'add-set' || kind === 'harder' ? colors.success : kind === 'maintain' || kind === 'mastery' ? colors.gold : colors.accent;
 
 /** "3 × 12", "3 × 30s", plus "each side" for per-side work. */
 export function setsText(sets: number, value: number, unit: 'reps' | 'seconds', perSide?: boolean): string {

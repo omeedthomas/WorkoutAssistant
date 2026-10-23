@@ -55,6 +55,12 @@ export interface StepDef {
   equipment?: Equipment[];
   /** Exercises to suggest instead when you don't have the equipment (on top of the automatic ones). */
   alternatives?: string[];
+  /**
+   * When a step was added to an existing progression (YYYY-MM-DD). Anyone who had already reached a later step of
+   * its track (mastered or logged it) gets it counted as mastered when their progress loads, so a new easier step
+   * never sends people back down a ladder they've climbed.
+   */
+  addedAt?: string;
 }
 
 /**

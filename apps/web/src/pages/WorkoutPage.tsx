@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import { Check, ClipboardList, Clock, Flame, Lightbulb, Play, Sparkles, Undo2, Wrench } from 'lucide-react';
+import { ArrowDown, Check, ClipboardList, Clock, Flame, Lightbulb, Pencil, Play, Sparkles, Undo2, Wrench } from 'lucide-react';
 import { DrillRow } from '../components/DrillRow';
 import { GuidedWorkout } from '../components/GuidedWorkout';
 import { NumberStepper } from '../components/NumberStepper';
 import { planKindLabel } from '../components/SessionPlanCard';
+import { SetsEditor } from '../components/SetsEditor';
+import { feedbackItems, NO_FEEDBACK, WorkoutFeedback, type Feedback } from '../components/WorkoutFeedback';
 import { useToast } from '../components/Toast';
 import { exerciseById, treeById, trees, type Exercise, type TreeId } from '@ascent/core/data';
 import { drillById, type Drill } from '@ascent/core/data/drills';
@@ -16,6 +18,8 @@ import { meetsTarget } from '@ascent/core/lib/graph';
 import { firstStepOf, guidedSteps, type GuidedStep } from '@ascent/core/lib/guided';
 import { bodyWeightOn } from '@ascent/core/lib/history';
 import { restFor, type PlanKind } from '@ascent/core/lib/progression';
+import { setValues, workFromSets } from '@ascent/core/lib/sets';
+import type { Work } from '@ascent/core/state/progress';
 import { navigate, skillHref, toHash } from '../lib/router';
 import { fromUnits, loadStepKg, toUnits } from '@ascent/core/lib/units';
 import {
@@ -30,7 +34,7 @@ import {
   type Block,
   type WorkoutLength,
 } from '@ascent/core/lib/workout';
-import { useActiveWorkout, workoutProgress, type ActiveExercise } from '../state/activeWorkout';
+import { easierStep, feedbackFor, useActiveWorkout, workoutProgress, type ActiveExercise } from '../state/activeWorkout';
 import { useProgress } from '../state/ProgressContext';
 
 const PREFS_KEY = 'ascent:workout-prefs';
@@ -67,6 +71,7 @@ interface MainItem {
   /** How to set up without the usual equipment. */
   setup?: string;
   logged?: ActiveExercise['logged'];
+  swappedFrom?: ActiveExercise['swappedFrom'];
 }
 
 export function WorkoutPage({ focus: routeFocus }: { focus?: TreeId[] }) {
@@ -302,6 +307,9 @@ interface ActiveControls {
   markLogged: (exerciseId: string, logged: ActiveExercise['logged']) => void;
   /** Opens the guided workout at this drill or exercise. */
   playFrom: (kind: GuidedStep['kind'], id: string) => void;
+  /** The step to switch to if this exercise is too hard (see core's `easierStep`). */
+  easier: (exerciseId: string) => Exercise | null;
+  swap: (fromId: string, toId: string) => void;
 }
 
 function WorkoutBody({
@@ -441,32 +449,50 @@ function ExerciseCard({ item, index, active }: { item: MainItem; index: number; 
 }
 
 function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls }) {
-  const { state, log, deleteLog, master } = useProgress();
+  const { state, log, editLog, deleteLog, master } = useProgress();
   const toast = useToast();
   const ex = item.exercise;
   const unit = ex.target.unit;
   const units = state.units;
   const weighted = ex.target.addedKg !== undefined;
-  const [adjusting, setAdjusting] = useState(false);
-  const [sets, setSets] = useState(item.sets);
-  const [value, setValue] = useState(item.value);
+  /** Logging numbers other than the plan ('new'), or correcting what was logged ('logged'). */
+  const [editing, setEditing] = useState<'new' | 'logged' | null>(null);
+  /** Each set's reps (or seconds). */
+  const [sets, setSets] = useState(() => Array.from({ length: item.sets }, () => item.value));
   const [added, setAdded] = useState(toUnits(item.addedKg ?? 0, units));
-  const adjusted = { sets, value, ...(weighted && { addedKg: fromUnits(added, units) }) };
+  const adjusted = workFromSets(sets, weighted ? fromUnits(added, units) : undefined);
   const planned = { sets: item.sets, value: item.value, ...(weighted && { addedKg: item.addedKg ?? 0 }) };
 
-  const record = (done: typeof adjusted) => {
+  const record = (done: Work) => {
     const logId = log(ex.id, done, planned);
     active.markLogged(ex.id, { ...done, logId });
-    setAdjusting(false);
+    setEditing(null);
   };
 
-  if (item.logged) {
-    const hitMastery = !state.mastered[ex.id] && meetsTarget(ex, item.logged);
+  const correct = (logId: string) => {
+    editLog(ex.id, logId, adjusted);
+    active.markLogged(ex.id, { ...adjusted, logId });
+    setEditing(null);
+  };
+
+  if (item.logged && editing !== 'logged') {
+    const logged = item.logged;
+    const hitMastery = !state.mastered[ex.id] && meetsTarget(ex, logged);
     return (
       <div className="wx-logged">
         <span className="wx-logged__text">
-          <Check size={15} aria-hidden /> Logged {formatWork(ex, item.logged, units)}
+          <Check size={15} aria-hidden /> Logged {formatWork(ex, logged, units)}
         </span>
+        <button
+          className="link-btn"
+          onClick={() => {
+            setSets(setValues(logged));
+            setAdded(toUnits(logged.addedKg ?? 0, units));
+            setEditing('logged');
+          }}
+        >
+          <Pencil size={13} aria-hidden /> Edit
+        </button>
         <button
           className="link-btn"
           onClick={() => {
@@ -496,37 +522,42 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
     );
   }
 
+  const logId = item.logged?.logId;
+  const easier = active.easier(ex.id);
+  const original = item.swappedFrom && exerciseById[item.swappedFrom.exerciseId];
   return (
     <div className="wx-actions">
-      {adjusting ? (
+      {editing ? (
         <>
-          <div className="log-box__inputs">
-            <NumberStepper label="Sets" value={sets} onChange={setSets} max={20} />
+          <SetsEditor
+            values={sets}
+            onChange={(v) => setSets(v.filter((x) => x !== undefined))}
+            unit={unit}
+            resizable
+          />
+          {weighted && (
             <NumberStepper
-              label={`${unit === 'seconds' ? 'Seconds' : 'Reps'} per set`}
-              value={value}
-              onChange={setValue}
-              step={unit === 'seconds' ? 5 : 1}
-              max={unit === 'seconds' ? 600 : 200}
+              label={`Added weight (${units})`}
+              value={added}
+              onChange={setAdded}
+              step={toUnits(loadStepKg(units), units)}
+              min={0}
+              max={units === 'lb' ? 400 : 180}
             />
-            {weighted && (
-              <NumberStepper
-                label={`Added weight (${units})`}
-                value={added}
-                onChange={setAdded}
-                step={toUnits(loadStepKg(units), units)}
-                min={0}
-                max={units === 'lb' ? 400 : 180}
-              />
-            )}
-          </div>
+          )}
           <div className="wx-actions__row">
-            <button className="btn btn--sm" onClick={() => setAdjusting(false)}>
+            <button className="btn btn--sm" onClick={() => setEditing(null)}>
               Cancel
             </button>
-            <button className="btn btn--primary btn--sm" onClick={() => record(adjusted)}>
-              Log {formatWork(ex, adjusted, units)}
-            </button>
+            {editing === 'logged' && logId ? (
+              <button className="btn btn--primary btn--sm" onClick={() => correct(logId)}>
+                Save {formatWork(ex, adjusted, units)}
+              </button>
+            ) : (
+              <button className="btn btn--primary btn--sm" onClick={() => record(adjusted)}>
+                Log {formatWork(ex, adjusted, units)}
+              </button>
+            )}
           </div>
         </>
       ) : (
@@ -534,9 +565,19 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
           <button className="btn btn--primary btn--sm" onClick={() => record(planned)}>
             <Check size={15} aria-hidden /> Done as planned
           </button>
-          <button className="btn btn--sm" onClick={() => setAdjusting(true)}>
-            Log different numbers
+          <button className="btn btn--sm" onClick={() => setEditing('new')}>
+            Log each set
           </button>
+          {easier && (
+            <button className="btn btn--sm" onClick={() => active.swap(ex.id, easier.id)} title={`Switch to ${easier.name} for this workout`}>
+              <ArrowDown size={15} aria-hidden /> Easier: {easier.name}
+            </button>
+          )}
+          {original && (
+            <button className="btn btn--sm" onClick={() => active.swap(ex.id, original.id)}>
+              <Undo2 size={15} aria-hidden /> Back to {original.name}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -547,18 +588,29 @@ function ActiveLogger({ item, active }: { item: MainItem; active: ActiveControls
 
 function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWorkout> }) {
   const toast = useToast();
-  const { state, finishWorkout, removeWorkout } = useProgress();
+  const { state, finishWorkout, removeWorkout, rateLog } = useProgress();
   const active = session.active!;
   const { done, total } = workoutProgress(active);
   const logged = active.main.filter((m) => m.logged).length;
   const kcal = activeCalories(active, bodyWeightOn(state) ?? DEFAULT_BODY_KG);
+  /** Finishing from the list asks how it was first (the guided player asks on its last screen). */
+  const [asking, setAsking] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(NO_FEEDBACK);
+  /** Keeps the question (which grows as you answer) in view above the floating footer. */
+  const showFeedback = () =>
+    requestAnimationFrame(() => document.querySelector('.workout-feedback')?.scrollIntoView({ behavior: 'smooth', block: 'end' }));
 
-  const finish = () => {
-    finishWorkout(active.startedAt, kcal);
+  const finish = ({ rating, adjust }: Feedback) => {
+    const changes = feedbackFor(active, rating, adjust);
+    for (const c of changes) rateLog(c.exerciseId, c.logId, c.feel);
+    finishWorkout(active.startedAt, kcal, rating ?? undefined);
     session.end();
+    const adjusted = changes.length
+      ? ` ${changes.length} exercise${changes.length === 1 ? '' : 's'} will be ${rating === 'hard' ? 'easier' : 'harder'} next time.`
+      : '';
     toast(
       done === total ? 'Workout complete!' : 'Workout finished',
-      `${logged} of ${active.main.length} exercises logged, about ${kcal} kcal burned. Your next plans have been updated.`,
+      `${logged} of ${active.main.length} exercises logged, about ${kcal} kcal burned. Your next plans have been updated.${adjusted}`,
     );
     scrollToTop();
   };
@@ -585,7 +637,8 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
           <span className="eyebrow">Workout in progress</span>
           <h1>{focusTitle(active.focus)}</h1>
         </header>
-        <GuidedWorkout session={session} kcal={kcal} onFinish={finish} />
+        {/* Switching an exercise changes the steps: start the player again, on the new exercise. */}
+        <GuidedWorkout key={active.main.map((m) => m.exerciseId).join()} session={session} kcal={kcal} onFinish={finish} />
       </div>
     );
   }
@@ -627,14 +680,42 @@ function ActiveWorkoutView({ session }: { session: ReturnType<typeof useActiveWo
           toggleDrill: session.toggleDrill,
           markLogged: session.markLogged,
           playFrom: (kind, id) => follow(firstStepOf(steps, kind, id)),
+          easier: (id) => easierStep(active, id, state.equipment?.have ?? null),
+          swap: (fromId, toId) => session.swap(fromId, toId, state),
         }}
       />
 
+      {asking && (
+        <section className="card workout-feedback" aria-label="Finish workout">
+          <WorkoutFeedback
+            items={feedbackItems(active, state.units)}
+            value={feedback}
+            onChange={(f) => {
+              setFeedback(f);
+              if (f.rating !== feedback.rating) showFeedback();
+            }}
+          />
+        </section>
+      )}
+
       <div className="workout-footer">
-        <button className="btn" onClick={discard}>
-          Discard
-        </button>
-        <button className="btn btn--primary" onClick={finish}>
+        {asking ? (
+          <button className="btn" onClick={() => setAsking(false)}>
+            Back
+          </button>
+        ) : (
+          <button className="btn" onClick={discard}>
+            Discard
+          </button>
+        )}
+        <button
+          className="btn btn--primary"
+          onClick={() => {
+            if (asking) return finish(feedback);
+            setAsking(true);
+            showFeedback();
+          }}
+        >
           <Check size={16} aria-hidden /> Finish workout
         </button>
       </div>

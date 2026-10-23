@@ -3,6 +3,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Minus,
   Pause,
   Play,
   Plus,
@@ -24,9 +25,11 @@ import {
   isLastOfItem,
   restAnnouncement,
   startAnnouncement,
+  workLabel,
   type GuidedPhase,
   type GuidedStep,
 } from '@ascent/core/lib/guided';
+import { SetsEditor } from './SetsEditor';
 
 /** Shown during the rest after an exercise was logged, with a prompt if it hit the mastery target. */
 export interface LoggedNote {
@@ -44,8 +47,15 @@ interface Props {
   /** Step to start at. */
   start: number;
   onPosition?: (index: number) => void;
-  /** A drill or exercise is over (finished or skipped) after `sets` completed sets (at least 1). */
-  onItemDone: (step: GuidedStep, sets: number) => LoggedNote | null | void;
+  /**
+   * A drill or exercise is over (finished or skipped), with each completed set's reps or seconds (at least one
+   * set). Called again with the corrected sets if you fix one afterwards, while resting.
+   */
+  onItemDone: (step: GuidedStep, sets: number[]) => LoggedNote | null | void;
+  /** Sets already done, by item (e.g. exercises logged from the list), so redoing one keeps the others. */
+  initialSets?: Record<number, number[]>;
+  /** Extra choices for the step you're on, e.g. switching to an easier exercise. */
+  stepActions?: (step: GuidedStep) => { label: string; onClick: () => void }[];
   onMaster?: (exerciseId: string) => void;
   /** Leaves the player, e.g. "Show list". */
   exit: { label: string; icon: ReactNode; onClick: () => void };
@@ -82,7 +92,21 @@ const entryStage = (s: GuidedStep): Stage =>
  * to do (tap Done) or a timer (after a get-ready countdown), then rest before the next set. The announcer
  * reads each part out loud.
  */
-export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDone, onMaster, exit, doneSpeech, onComplete, done: finish }: Props) {
+export function GuidedPlayer({
+  label,
+  color,
+  steps,
+  start,
+  onPosition,
+  onItemDone,
+  initialSets,
+  stepActions,
+  onMaster,
+  exit,
+  doneSpeech,
+  onComplete,
+  done: finish,
+}: Props) {
   const prefs = useGuidePrefs();
   const [index, setIndex] = useState(() => Math.min(Math.max(0, start), steps.length - 1));
   const [stage, setStage] = useState<Stage>(() => entryStage(steps[index]));
@@ -90,8 +114,12 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
   /** Time left when paused, in ms. */
   const [paused, setPaused] = useState<number | null>(null);
   const [justLogged, setJustLogged] = useState<LoggedNote | null>(null);
-  /** Completed sets per item, for logging what you actually did. */
-  const setsDone = useRef(new Map<number, number>());
+  /** Each completed set's reps (or seconds) per item, by set number (a set not done is a gap), for logging what you actually did. */
+  const [setsDone, setSetsDone] = useState<Record<number, (number | undefined)[]>>(() => ({ ...initialSets }));
+  /** Items already handed to onItemDone, so a correction is passed on too. */
+  const settled = useRef(new Set<number>());
+  /** Reps you did in the current set, when you change them from the plan. */
+  const [reps, setReps] = useState<number | null>(null);
   const spoken = useRef('');
 
   const step = steps[index];
@@ -111,16 +139,24 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
     onPosition?.(i);
     setPaused(null);
     setJustLogged(null);
+    setReps(null);
     go(entryStage(s));
     speak(startAnnouncement(s));
   };
 
   /** Hands a finished drill or exercise (with the sets you completed) to the owner, e.g. to log it. */
-  const settleItem = (s: GuidedStep) => {
-    const done = setsDone.current.get(s.item) ?? 0;
-    if (!done) return;
+  const settleItem = (s: GuidedStep, sets = setsDone[s.item]) => {
+    const done = (sets ?? []).filter((v) => v !== undefined);
+    if (!done.length) return;
+    settled.current.add(s.item);
     const note = onItemDone(s, done);
     if (note) setJustLogged(note);
+  };
+
+  /** Fixes a finished set's reps or seconds while resting, e.g. you tapped Done but only got 9. */
+  const correctSets = (s: GuidedStep, sets: (number | undefined)[]) => {
+    setSetsDone({ ...setsDone, [s.item]: sets });
+    if (settled.current.has(s.item)) settleItem(s, sets);
   };
 
   const finishAll = () => {
@@ -132,8 +168,14 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
 
   /** Ends the current step: counts it if you did it, then rests (or moves straight on). */
   const finishStep = (completed: boolean) => {
-    if (completed && (step.side?.index ?? 1) === 1) setsDone.current.set(step.item, (setsDone.current.get(step.item) ?? 0) + 1);
-    if (isLastOfItem(steps, index)) settleItem(step);
+    let sets = setsDone[step.item];
+    // A set counts once both sides are done. Doing it again (after going back) replaces it.
+    if (completed && (step.side?.index ?? 1) === 1) {
+      sets = [...(sets ?? [])];
+      sets[step.set - 1] = step.kind === 'exercise' ? (reps ?? step.value ?? 1) : 1;
+      setSetsDone({ ...setsDone, [step.item]: sets });
+    }
+    if (isLastOfItem(steps, index)) settleItem(step, sets);
     if (!next) return finishAll();
     const rest = completed ? step.rest : 0;
     if (rest > 0) {
@@ -277,6 +319,8 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
           <h2>{shown.name}</h2>
           <p className="guided__set">
             {shown.sets > 1 && <span>Set {shown.set} of {shown.sets}</span>}
+            {/* Resting, the panel shows the rest timer, so say here how much the next set is. */}
+            {stage.kind === 'rest' && <strong>{workLabel(shown)}</strong>}
             {shown.side && <span>{shown.side.label}</span>}
             {shown.load && <span>{shown.load.text}</span>}
           </p>
@@ -338,10 +382,14 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
 
           {stage.kind === 'work' && step.seconds === undefined && (
             <>
-              <div className="guided-reps" role="status">
-                <span className="guided-reps__big">{step.reps?.match(/^\d+/)?.[0] ?? '✓'}</span>
-                <span className="guided-reps__small">{step.reps?.replace(/^\d+\s*/, '')}</span>
-              </div>
+              {step.kind === 'exercise' && step.value !== undefined ? (
+                <RepCounter step={step} value={reps ?? step.value} onChange={setReps} />
+              ) : (
+                <div className="guided-reps" role="status">
+                  <span className="guided-reps__big">{step.reps?.match(/^\d+/)?.[0] ?? '✓'}</span>
+                  <span className="guided-reps__small">{step.reps?.replace(/^\d+\s*/, '')}</span>
+                </div>
+              )}
               <div className="guided-controls">
                 <button className="btn" onClick={tap(back)} aria-label="Previous step">
                   <ChevronLeft size={18} aria-hidden />
@@ -359,6 +407,18 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
                 <span className="guided-ring__big">{clock(remainingMs! / 1000)}</span>
                 <span className="guided-ring__small">{paused !== null ? 'Paused' : 'Rest'}</span>
               </Ring>
+              {step.kind === 'exercise' && setsDone[step.item]?.some((v) => v !== undefined) && (
+                <div className="guided-sets">
+                  <p className="small">
+                    <strong>Your sets of {step.name}</strong> <span className="muted">· fix any that went differently</span>
+                  </p>
+                  <SetsEditor
+                    values={setsDone[step.item]}
+                    unit={step.seconds !== undefined ? 'seconds' : 'reps'}
+                    onChange={(sets) => correctSets(step, sets)}
+                  />
+                </div>
+              )}
               {justLogged && (
                 <LoggedBanner
                   logged={justLogged}
@@ -384,9 +444,16 @@ export function GuidedPlayer({ label, color, steps, start, onPosition, onItemDon
 
           <UpNext stage={stage} step={step} next={next} />
           {stage.kind !== 'rest' && (
-            <button className="link-btn guided__skip" onClick={tap(skipItem)}>
-              Skip {step.kind === 'drill' ? 'this drill' : 'this exercise'}
-            </button>
+            <div className="guided__actions">
+              {stepActions?.(step).map((a) => (
+                <button key={a.label} className="btn btn--sm guided__action" onClick={tap(a.onClick)}>
+                  {a.label}
+                </button>
+              ))}
+              <button className="link-btn guided__skip" onClick={tap(skipItem)}>
+                Skip {step.kind === 'drill' ? 'this drill' : 'this exercise'}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -490,7 +557,7 @@ function UpNext({ stage, step, next }: { stage: Stage; step: GuidedStep; next?: 
     return next?.seconds !== undefined ? (
       <p className="guided__next small muted">A {GET_READY_SECONDS}-second countdown starts the timer after your rest.</p>
     ) : (
-      <p className="guided__next small muted">Tap Done when you finish each set.</p>
+      <p className="guided__next small muted">Tap Done when you finish each set. Did more or fewer reps? Change the number first.</p>
     );
   }
   if (!next) return <p className="guided__next small muted">Last one!</p>;
@@ -500,8 +567,28 @@ function UpNext({ stage, step, next }: { stage: Stage; step: GuidedStep; next?: 
     <p className="guided__next small muted">
       Next: {rest}
       <strong>{next.name}</strong>
-      {next.side?.index === 1 ? ` · ${next.side.label.toLowerCase()}` : set}
+      {next.side?.index === 1 ? ` · ${next.side.label.toLowerCase()}` : `${set} · ${workLabel(next)}`}
     </p>
+  );
+}
+
+/** This set's reps, big, with − and + to log what you actually did before tapping Done. */
+function RepCounter({ step, value, onChange }: { step: GuidedStep; value: number; onChange: (n: number) => void }) {
+  const words = step.reps?.replace(/^\d+\s*/, '').replace(/^reps?\b/, value === 1 ? 'rep' : 'reps');
+  return (
+    <div className="guided-count">
+      <button type="button" className="guided-count__btn" aria-label="One rep fewer" disabled={value <= 1} onClick={() => onChange(value - 1)}>
+        <Minus size={24} aria-hidden />
+      </button>
+      <div className="guided-reps" role="status" aria-live="polite">
+        <span className="guided-reps__big">{value}</span>
+        <span className="guided-reps__small">{words}</span>
+        {value !== step.value && <span className="guided-reps__plan">Planned {step.value}</span>}
+      </div>
+      <button type="button" className="guided-count__btn" aria-label="One rep more" disabled={value >= 200} onClick={() => onChange(value + 1)}>
+        <Plus size={24} aria-hidden />
+      </button>
+    </div>
   );
 }
 

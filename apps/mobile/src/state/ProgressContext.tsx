@@ -8,10 +8,12 @@ import {
   makeId,
   progressReducer,
   sanitizeProgress,
+  type Feel,
   type LogEntry,
   type ProgressState,
   type Work,
   type WorkoutPlan,
+  type WorkoutRating,
   type WorkoutRecord,
 } from '@ascent/core/state/progress';
 import { readJson, writeJson } from './storage';
@@ -27,9 +29,13 @@ export interface ProgressApi {
   /** Logs a session and returns its id. */
   log: (id: string, done: Work, planned?: Work) => string;
   deleteLog: (id: string, logId: string) => void;
+  /** Corrects a logged session's numbers, e.g. each set's reps. */
+  editLog: (id: string, logId: string, done: Work) => void;
+  /** Says a logged session was too easy or too hard (null clears it), so its next plan adjusts. */
+  rateLog: (id: string, logId: string, feel: Feel | null) => void;
   toggleGoal: (id: string) => void;
   recordWorkout: (record: WorkoutRecord) => void;
-  finishWorkout: (startedAt: string, kcal?: number) => void;
+  finishWorkout: (startedAt: string, kcal?: number, rating?: WorkoutRating) => void;
   removeWorkout: (startedAt: string) => void;
   setUnits: (units: Units) => void;
   /** Saves the areas you train and how long, for Today's workout. */
@@ -81,16 +87,19 @@ export function ProgressProvider({ children, fallback }: { children: ReactNode; 
       log(id, done, planned) {
         const date = now();
         const entry: LogEntry = { id: makeId(), date, day: localDay(date), sets: done.sets, value: done.value };
+        if (done.perSet) entry.perSet = done.perSet;
         if (done.addedKg !== undefined) entry.addedKg = done.addedKg;
         if (planned) entry.planned = planned;
         dispatch({ type: 'log', exerciseId: id, entry });
         return entry.id;
       },
       deleteLog: (id, logId) => dispatch({ type: 'deleteLog', exerciseId: id, logId }),
+      editLog: (id, logId, done) => dispatch({ type: 'editLog', exerciseId: id, logId, work: done, at: now() }),
+      rateLog: (id, logId, feel) => dispatch({ type: 'rateLog', exerciseId: id, logId, feel, at: now() }),
       toggleGoal: (id) => dispatch({ type: 'toggleGoal', id }),
       recordWorkout: (record) => dispatch({ type: 'recordWorkout', day: localDay(record.startedAt), record }),
-      finishWorkout: (startedAt, kcal) =>
-        dispatch({ type: 'finishWorkout', day: localDay(startedAt), startedAt, at: now(), kcal }),
+      finishWorkout: (startedAt, kcal, rating) =>
+        dispatch({ type: 'finishWorkout', day: localDay(startedAt), startedAt, at: now(), kcal, rating }),
       removeWorkout: (startedAt) => dispatch({ type: 'removeWorkout', day: localDay(startedAt), startedAt }),
       setUnits: (units) => dispatch({ type: 'setUnits', units }),
       setWorkoutPlan: (plan) => dispatch({ type: 'setWorkoutPlan', plan: plan && { ...plan, at: now() } }),

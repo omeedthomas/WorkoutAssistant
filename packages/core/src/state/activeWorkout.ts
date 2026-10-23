@@ -1,7 +1,10 @@
-import { exerciseById, treeById, type TreeId } from '../data';
+import { exerciseById, trackByKey, treeById, type Equipment, type Exercise, type TreeId } from '../data';
 import { drillById } from '../data/drills';
-import type { PlanKind } from '../lib/progression';
+import { canDo } from '../lib/equipment';
+import { firstStepOf, guidedSteps } from '../lib/guided';
+import { planSession, type PlanKind } from '../lib/progression';
 import { LENGTHS, type Block, type Workout, type WorkoutLength } from '../lib/workout';
+import type { Feel, ProgressState, Work, WorkoutRating } from './progress';
 
 /**
  * A workout you've started. It's a snapshot, so logging sets mid-session
@@ -20,7 +23,10 @@ export interface ActiveExercise {
   block: Block;
   /** How to set up without the usual equipment. */
   setup?: string;
-  logged?: { sets: number; value: number; addedKg?: number; logId: string };
+  /** What was logged (each set, if they differed) and the log entry it went into. */
+  logged?: Work & { logId: string };
+  /** Switched to (an easier step) from this exercise mid-workout, so you can switch back. */
+  swappedFrom?: Omit<ActiveExercise, 'logged' | 'swappedFrom'>;
 }
 
 export interface ActiveWorkout {
@@ -51,7 +57,9 @@ export function restoreActiveWorkout(raw: unknown, now = new Date()): ActiveWork
     focus: w.focus.filter((t) => t in treeById),
     warmup: w.warmup.filter((id) => drillById[id]),
     cooldown: w.cooldown.filter((id) => drillById[id]),
-    main: w.main.filter((m) => exerciseById[m.exerciseId]),
+    main: w.main
+      .filter((m) => exerciseById[m.exerciseId])
+      .map((m) => (m.swappedFrom && !exerciseById[m.swappedFrom.exerciseId] ? { ...m, swappedFrom: undefined } : m)),
     checked: Array.isArray(w.checked) ? w.checked : [],
     notes: Array.isArray(w.notes) ? w.notes : [],
     guided: w.guided === true,
@@ -83,6 +91,63 @@ export function snapshot(w: Workout, now = new Date()): ActiveWorkout {
     guided: true,
     position: 0,
   };
+}
+
+/**
+ * The step to switch to when an exercise is too hard mid-workout: the previous step of its progression (for a
+ * first step, the one its progression starts from), going further down past steps you lack the equipment for or
+ * that are already in the workout. Null at the bottom of a ladder.
+ */
+export function easierStep(w: ActiveWorkout, exerciseId: string, have: Equipment[] | null): Exercise | null {
+  const inWorkout = new Set(w.main.map((m) => m.exerciseId));
+  let ex: Exercise | undefined = exerciseById[exerciseId];
+  for (let guard = 0; ex && guard < 20; guard++) {
+    const cur: Exercise = ex;
+    const from = cur.requires.map((id) => exerciseById[id]).filter(Boolean);
+    ex = trackByKey[cur.track]?.steps[cur.step - 1] ?? from.find((e) => e.tree === cur.tree) ?? from[0];
+    if (ex && !inWorkout.has(ex.id) && canDo(ex, have)) return ex;
+  }
+  return null;
+}
+
+/**
+ * Switches an exercise you haven't logged yet for another: an easier step (planned from your history for it), or
+ * back to the one it replaced (as it was planned). The guided player picks up at the new exercise's first set.
+ */
+export function swapExercise(w: ActiveWorkout, fromId: string, toId: string, state: ProgressState, now = new Date()): ActiveWorkout {
+  const m = w.main.find((x) => x.exerciseId === fromId);
+  const to = exerciseById[toId];
+  if (!m || m.logged || !to || (toId !== fromId && w.main.some((x) => x.exerciseId === toId))) return w;
+  const original = m.swappedFrom ?? { ...m };
+  let next: ActiveExercise;
+  if (original.exerciseId === toId) {
+    next = { ...original };
+  } else {
+    const plan = planSession(to, state.logs[toId], { mastered: !!state.mastered[toId], now, units: state.units });
+    next = {
+      exerciseId: toId,
+      sets: plan.sets,
+      value: plan.value,
+      ...(plan.addedKg !== undefined && { addedKg: plan.addedKg }),
+      kind: plan.kind,
+      reason: plan.reason,
+      why: `Easier than ${exerciseById[original.exerciseId].name}`,
+      block: m.block,
+      swappedFrom: original,
+    };
+  }
+  const swapped = { ...w, main: w.main.map((x) => (x === m ? next : x)) };
+  return { ...swapped, position: firstStepOf(guidedSteps(swapped, state.units), 'exercise', toId) };
+}
+
+/**
+ * After a workout you say how it felt. Too easy or too hard marks the logged exercises you picked, so each
+ * one's next plan steps up or eases off; just right changes nothing.
+ */
+export function feedbackFor(w: ActiveWorkout, rating: WorkoutRating | null, picked: string[]): { exerciseId: string; logId: string; feel: Feel }[] {
+  const feel: Feel | null = rating === 'easy' ? 'easy' : rating === 'hard' ? 'hard' : null;
+  if (!feel) return [];
+  return w.main.flatMap((m) => (m.logged && picked.includes(m.exerciseId) ? [{ exerciseId: m.exerciseId, logId: m.logged.logId, feel }] : []));
 }
 
 export function workoutProgress(w: ActiveWorkout): { done: number; total: number } {

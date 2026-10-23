@@ -86,6 +86,10 @@ Real sign-in needs `VITE_GOOGLE_CLIENT_ID` in `apps/web/.env.local` (see `apps/w
   the form `'exercise-id': { youtubeId: '...', title: '...', channel: '...' },`.
 - **Exercise ids are persisted** (local storage on both apps, JSON exports, Drive files). `sanitizeProgress`
   silently drops unknown ids, so renaming or removing an id discards users' mastery and logs for it.
+- A step inserted into an existing track (e.g. Assisted Scapular Pull before Scapular Pull) needs `addedAt`:
+  `sanitizeProgress` then counts it as mastered for anyone who already mastered or logged a later step of that
+  track, so it doesn't become their "current step" or lock what they were training. Without it, the new step
+  turns up in their workouts and the step after it locks.
 
 ### Pure logic (`lib/`)
 `graph.ts` (status, ancestors, goal paths), `progression.ts` (`planSession`: the next-session prescription
@@ -94,7 +98,8 @@ from history; mastered exercises keep progressing past the target via `planMaste
 current steps with main tracks before variations, one due mastered exercise (`maintenanceFor`) slotted in right
 after the first, then lead-ins, then steps a little ahead (`NEXT_UP_GAP`) so every area gets at least
 `MIN_PER_AREA`; a test sweeps every tree to hold that; `suggestSplit`), `history.ts` (per-day summaries, streaks,
-rep growth, body-weight goal progress, `workoutDone`), `today.ts` (`todayAtAGlance`: the streak and today's
+rep growth, body-weight goal progress, `workoutDone`), `sets.ts` (sessions whose sets differed),
+`today.ts` (`todayAtAGlance`: the streak and today's
 workout, for the widget), `reminders.ts` (`upcomingReminders`), `calories.ts` (MET-based estimates) and
 `guided.ts` are pure functions of the catalog plus `ProgressState`. Tests run in Vitest's `node` environment with no
 DOM, so logic that needs tests belongs in core, not in either app's components.
@@ -102,6 +107,19 @@ DOM, so logic that needs tests belongs in core, not in either app's components.
 **Weights are always stored in kg** (`addedKg` on logs, plans and targets, weigh-ins, the weight goal).
 `state.units` (`lb`/`kg`) only changes display and input; convert with `lib/units.ts`. Plans snap loads to
 5 lb / 2.5 kg plates (`snapLoad`), and targets display rounded up so hitting the shown number meets them.
+
+**Sets can differ** (10, then 9, then 8 reps). `Work.perSet` keeps each set when they do (only then), and
+`value` is the lowest, what every set reached, so `meets`/`meetsTarget` stay "every set hit it". Anything that
+adds work up (day totals, calories, rep growth) must use `lib/sets.ts` (`setValues`, `totalWork`, `averageSet`),
+never `sets × value`; build a session from sets with `workFromSets`. Progression judges how far a miss fell by
+the average set (`typical`), so 10, 8, 6 against 3 × 10 repeats the plan instead of resetting to 6s.
+
+**How it felt.** `LogEntry.feel` (`'easy' | 'hard'`) is set after a workout on the exercises you pick, and the
+next plan for that exercise is `'easier'` (a step fewer reps, or a plate lighter) or `'harder'` (two steps or
+plates up, capped at the target until mastered), ahead of the miss logic but after mastery and a long break.
+It only affects the next session. `WorkoutRecord.rating` holds the whole workout's Easy / Just right / Too hard;
+`feedbackFor` (`state/activeWorkout.ts`) turns the answer into the `rateLog` calls both apps make.
+`editLog` and `rateLog` stamp `edited`, and merging keeps the most recently edited copy of a log.
 
 ### State
 - `state/progress.ts` holds the single `ProgressState` (`version: 1`), its reducer, and `sanitizeProgress`,
@@ -115,7 +133,15 @@ DOM, so logic that needs tests belongs in core, not in either app's components.
   steps (every set, each side of a per-side timed hold), rest lengths (`restSeconds` in `progression.ts`, also
   used for "Rest …" labels and time estimates) and announcer lines. Each app has its own player state machine
   (get-ready → work → rest on `Date.now()`-based timers): web `components/GuidedPlayer.tsx`, mobile
-  `src/lib/useGuidedPlayer.ts`. Both log finished exercises the same way (the sets completed, with `planned`).
+  `src/lib/useGuidedPlayer.ts`. Both keep each completed set's reps (− and + before Done; `step.value` is the
+  plan), let you correct them while resting, and call `onItemDone(step, sets)` when an exercise ends and again
+  after a correction; the owner logs it the first time and `editLog`s it after (`initialSets` seeds exercises
+  already logged, so redoing one set keeps the rest). Both ask "How was this workout?" when you finish.
+- "Too hard? Switch to …": `easierStep` (`state/activeWorkout.ts`) is the previous step of the exercise's track
+  (or the step its track starts from), skipping ones already in the workout or needing gear you lack;
+  `swapExercise` replaces an unlogged exercise with it, planned by `planSession`, keeps the original in
+  `swappedFrom` (to switch back as planned) and moves `position` to its first set. Each app's session has
+  `swap(from, to, state)`, and the players are keyed by the exercise ids so they restart on the new steps.
 - Days are local calendar days (`localDay()`, `YYYY-MM-DD`), not UTC. Logs, workouts and weigh-ins are filed by
   them; do date arithmetic on them with `addDays` / `daysBetween` from `lib/history.ts`.
 - Streak timing lives in `lib/history.ts` (`streakOf`, `streakDeadline`, `streakUrgency`, `REMINDER_HOURS`).
@@ -125,7 +151,7 @@ DOM, so logic that needs tests belongs in core, not in either app's components.
 - Core has the format and the engine: `documents.ts` maps `ProgressState` to documents (`progress` with
   mastered, goals, onboarded, weight goal and units, plus one `day:YYYY-MM-DD` per day with workouts, logged
   sets or a weigh-in); `diffDocs` produces the minimal `SaveOps`; `merge.ts` merges losslessly (union of logs by
-  id, earliest mastery date, workouts by `startedAt`); `driveStore.ts` is the Drive REST layer (files found by
+  id, the latest `edited` winning, earliest mastery date, workouts by `startedAt`, finished and rated first); `driveStore.ts` is the Drive REST layer (files found by
   `appProperties`, not by name); `syncEngine.ts` reconciles on sign-in (upload, download or merge), debounces
   pushes of changed docs, pulls on return to the app, and goes into `reconnect` status when the roughly 1-hour
   access token expires.

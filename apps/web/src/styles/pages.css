@@ -878,6 +878,18 @@
   height: 8px;
 }
 
+/* "How was this workout?", shown when you finish from the list. Scrolled to clear the floating footer. */
+.workout-feedback {
+  margin-top: 16px;
+  scroll-margin-bottom: 110px;
+}
+
+@media (max-width: 767px) {
+  .workout-feedback {
+    scroll-margin-bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 100px);
+  }
+}
+
 .workout-footer {
   position: fixed;
   left: 50%;

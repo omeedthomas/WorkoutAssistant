@@ -247,6 +247,118 @@
   font-size: 0.95rem;
 }
 
+/* The reps for this set, with − and + either side. */
+.guided-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.guided-count__btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.guided-count__btn:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.guided-count__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.guided-reps__plan {
+  color: var(--text-3);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Resting: the sets done so far, each one correctable. */
+.guided-sets {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.guided-sets > p {
+  margin: 0;
+}
+
+/* ---------- How was it? (end of a workout) ---------- */
+
+.feedback {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.feedback__question {
+  margin: 0;
+  color: var(--text);
+}
+
+.feedback__ratings {
+  display: flex;
+}
+
+.feedback__ratings button {
+  flex: 1;
+  justify-content: center;
+  min-height: 42px;
+}
+
+.feedback__pick {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.feedback__pick legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--text-2);
+}
+
+.feedback__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.feedback__item:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.feedback__item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.feedback__name {
+  flex: 1;
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* ---------- Controls ---------- */
 
 .guided-controls {
@@ -272,6 +384,14 @@
 
 .guided__skip {
   color: var(--text-2);
+}
+
+.guided__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
 }
 
 .guided__logged {

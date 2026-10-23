@@ -20,11 +20,12 @@ import {
 } from '@ascent/core/lib/history';
 import { navigate, skillHref, toHash } from '../lib/router';
 import { formatWeight, fromUnits, toUnits } from '@ascent/core/lib/units';
-import { localDay } from '@ascent/core/state/progress';
+import { localDay, type WorkoutRating } from '@ascent/core/state/progress';
 import { useProgress } from '../state/ProgressContext';
 
 /** A known Sunday, for weekday labels. Weeks start on Sunday. */
 const A_SUNDAY = '2023-01-01';
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const monthOf = (day: string) => day.slice(0, 7);
 
@@ -213,6 +214,7 @@ function SessionList({ sessions }: { sessions: DaySession[] }) {
 }
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const RATED: Record<WorkoutRating, string> = { easy: 'felt easy', right: 'felt just right', hard: 'felt too hard' };
 
 function DayDetail({ day, today, summary }: { day: string; today: string; summary?: DaySummary }) {
   const { state } = useProgress();
@@ -264,6 +266,7 @@ function DayContents({ summary, kg }: { summary: DaySummary; kg: number }) {
                 {timeFmt.format(new Date(w.startedAt))}
                 {minutes !== null && minutes > 0 && minutes < 300 && ` · ${minutes} min`}
                 {kcal > 0 && ` · about ${kcal} kcal`}
+                {w.rating && ` · ${RATED[w.rating]}`}
               </span>
             </div>
             {sessions.length ? (
@@ -301,9 +304,20 @@ function WeightCard() {
   const series = weightSeries(state);
   const latest = series[series.length - 1];
   const progress = weightGoalProgress(state);
+  const today = localDay();
+  const [day, setDay] = useState(today);
   const [weightText, setWeightText] = useState(latest ? String(toUnits(latest.kg, units)) : '');
   const [goalText, setGoalText] = useState(state.weightGoal ? String(toUnits(state.weightGoal.kg, units)) : '');
-  const loggedToday = !!state.weight[localDay()];
+  // One weigh-in per day: logging a day that has one replaces it.
+  const onDay = state.weight[day];
+
+  /** Picking a day that already has a weigh-in loads it, so it can be corrected. */
+  const pickDay = (d: string) => {
+    if (!DAY_RE.test(d) || d > today) return; // cleared or out of range: keep the last good day
+    setDay(d);
+    const w = state.weight[d];
+    if (w) setWeightText(String(toUnits(w.kg, units)));
+  };
 
   /** A typed body weight in kg, or null (with a toast) if it isn't plausible. */
   const parse = (text: string): number | null => {
@@ -317,8 +331,9 @@ function WeightCard() {
     e.preventDefault();
     const kg = parse(weightText);
     if (kg === null) return;
-    logWeight(kg);
-    toast(loggedToday ? "Today's weight updated" : 'Weight logged', formatWeight(kg, units));
+    logWeight(kg, day);
+    const when = day === today ? 'today' : `on ${formatDay(day, { weekday: 'short', month: 'short', day: 'numeric' })}`;
+    toast(onDay ? 'Weigh-in updated' : 'Weight logged', `${formatWeight(kg, units)} ${when}`);
   };
 
   const saveGoal = (e: FormEvent) => {
@@ -342,8 +357,12 @@ function WeightCard() {
 
       <div className="weight-forms">
         <form className="field-row" onSubmit={saveWeight}>
+          <label className="field field--date">
+            <span className="field__label">Date</span>
+            <input type="date" value={day} max={today} required onChange={(e) => pickDay(e.target.value)} />
+          </label>
           <label className="field">
-            <span className="field__label">Today's weight ({units})</span>
+            <span className="field__label">Weight ({units})</span>
             <input
               type="number"
               inputMode="decimal"
@@ -354,7 +373,7 @@ function WeightCard() {
             />
           </label>
           <button className="btn btn--primary" type="submit" disabled={!weightText}>
-            {loggedToday ? 'Update' : 'Log'}
+            {onDay ? 'Update' : 'Log'}
           </button>
         </form>
         <form className="field-row" onSubmit={saveGoal}>

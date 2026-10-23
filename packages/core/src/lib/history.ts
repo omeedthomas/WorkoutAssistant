@@ -1,5 +1,6 @@
 import { exerciseById, type Exercise } from '../data';
 import { localDay, type LogEntry, type ProgressState, type WeighIn, type WorkoutRecord } from '../state/progress';
+import { averageSet, totalWork } from './sets';
 
 // ---------- Days ----------
 
@@ -100,7 +101,7 @@ export interface DayTotals {
   minutes: number | null;
   exercises: number;
   sets: number;
-  /** Total reps across rep-based sessions (sets × reps). */
+  /** Total reps across rep-based sessions (every set added up). */
   reps: number;
 }
 
@@ -118,7 +119,7 @@ export function dayTotals(summary: DaySummary): DayTotals {
     minutes,
     exercises: new Set(summary.sessions.map((s) => s.exercise.id)).size,
     sets: summary.sessions.reduce((sum, s) => sum + s.log.sets, 0),
-    reps: summary.sessions.reduce((sum, s) => sum + (s.exercise.target.unit === 'reps' ? s.log.sets * s.log.value : 0), 0),
+    reps: summary.sessions.reduce((sum, s) => sum + (s.exercise.target.unit === 'reps' ? totalWork(s.log) : 0), 0),
   };
 }
 
@@ -205,7 +206,7 @@ export function reminderTimes(keepBy: string, hours = REMINDER_HOURS): Date[] {
 
 export interface Growth {
   exercise: Exercise;
-  /** Oldest first: reps (or seconds) per set, or added weight in kg on weighted exercises. */
+  /** Oldest first: reps (or seconds) per set (the average set when they differed), or added weight in kg on weighted exercises. */
   points: { date: string; value: number }[];
   first: number;
   latest: number;
@@ -225,7 +226,7 @@ export function growthOf(state: ProgressState, { limit = 5, sessions = 12 } = {}
     const points = logs
       .slice(0, sessions)
       .reverse()
-      .map((l) => ({ date: l.date, value: weighted ? (l.addedKg ?? 0) : l.value }));
+      .map((l) => ({ date: l.date, value: weighted ? (l.addedKg ?? 0) : Math.round(averageSet(l)) }));
     list.push({ exercise, points, first: points[0].value, latest: points[points.length - 1].value, weighted });
   }
   const lastDate = (g: Growth) => g.points[g.points.length - 1].date;

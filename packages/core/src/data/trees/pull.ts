@@ -28,6 +28,21 @@ export const pull: TreeDef = {
           ],
         },
         {
+          id: 'assisted-scapular-pull',
+          name: 'Assisted Scapular Pull',
+          level: 1,
+          addedAt: '2026-10-23',
+          target: reps(3, 12),
+          equipment: ['pullup-bar', 'rings'],
+          description:
+            'A scapular pull with some of your weight on your feet: stand under low rings or a low bar, or rest your feet on a chair under a high one (a resistance band looped over the bar works too). Learn the shoulder-blade pull before you hang your full weight.',
+          cues: [
+            'Arms stay straight; only your shoulder blades move',
+            'Push through your feet just enough to finish each rep',
+            'Take less help from your legs as it gets easier',
+          ],
+        },
+        {
           id: 'scapular-pull',
           name: 'Scapular Pull',
           level: 1,
@@ -53,6 +68,21 @@ export const pull: TreeDef = {
             'Jump or step up into the top position',
             'Chest close to the bar, elbows pulled down',
             "Don't crane your neck to reach the bar",
+          ],
+        },
+        {
+          id: 'assisted-pullup',
+          name: 'Assisted Pull-up',
+          level: 2,
+          addedAt: '2026-10-23',
+          target: reps(3, 8),
+          equipment: ['pullup-bar', 'rings'],
+          description:
+            'A full pull-up with help: loop a resistance band over the bar and put a foot or knee in it, or rest your feet on a chair and push with your legs only as much as you need. Use a lighter band (or less leg) as you get stronger.',
+          cues: [
+            'Start every rep from straight arms',
+            "Let the band help you up, but don't let it bounce you",
+            'Lower slowly, all the way down',
           ],
         },
         {

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Workout } from '@ascent/core/lib/workout';
-import { restoreActiveWorkout, snapshot, type ActiveExercise, type ActiveWorkout } from '@ascent/core/state/activeWorkout';
+import { restoreActiveWorkout, snapshot, swapExercise, type ActiveExercise, type ActiveWorkout } from '@ascent/core/state/activeWorkout';
+import type { ProgressState } from '@ascent/core/state/progress';
 import { readJson, writeJson } from './storage';
 
 export const WORKOUT_KEY = 'ascent:workout:v1';
@@ -14,6 +15,8 @@ export interface ActiveWorkoutApi {
   checkDrill: (id: string) => void;
   markLogged: (exerciseId: string, logged: ActiveExercise['logged']) => void;
   setPosition: (position: number) => void;
+  /** Switches an exercise not logged yet for another (an easier step, or back), planned from `state`. */
+  swap: (fromId: string, toId: string, state: ProgressState) => void;
 }
 
 const ActiveWorkoutContext = createContext<ActiveWorkoutApi | null>(null);
@@ -46,6 +49,7 @@ export function ActiveWorkoutProvider({ children }: { children: ReactNode }) {
       markLogged: (exerciseId, logged) =>
         setActive((w) => w && { ...w, main: w.main.map((m) => (m.exerciseId === exerciseId ? { ...m, logged } : m)) }),
       setPosition: (position) => setActive((w) => (w && w.position !== position ? { ...w, position } : w)),
+      swap: (fromId, toId, state) => setActive((w) => w && swapExercise(w, fromId, toId, state)),
     }),
     [active],
   );

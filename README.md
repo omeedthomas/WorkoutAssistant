@@ -55,9 +55,13 @@ lever needs pull-ups **and** a hollow body hold (Core).
   - *Target reached:* prompt to mark it mastered and move on to the next step.
   - *Mastered:* hit the target (or your recent best) to maintain it. Each time you complete the plan, the next
     session adds a rep or a few seconds, so your max keeps growing, up to twice the target.
+  - *You said it was too hard (or too easy):* the next session drops a step of reps (or a plate), or jumps two
+    steps ahead (see *How was this workout?* below).
 
-  Each session logs what was planned alongside what you did. The panel shows the sets laid out, rest time,
-  roughly how many sessions to mastery, and a chart of your recent sessions against the goal.
+  Each session logs what was planned alongside what you did, set by set when the sets differed (10, 9, 8). A
+  plan only counts as done when every set reached it, and a near miss like 10, 9, 8 against 3 × 10 repeats the
+  plan rather than dropping to 8s. The panel shows the sets laid out, rest time, roughly how many sessions to
+  mastery, and a chart of your recent sessions against the goal.
 - **Daily workout generator:** choose a training day (Push + Pull, Handstand + Core, Legs + Core,
   Planche + Levers, Muscle-up + Pull, Full body, Recovery & mobility) or any mix of trees, plus a length.
   Every area gets at least two exercises: Short gives 2 per area, Standard 3 (up to 12 in all) and Long 4 (up
@@ -86,9 +90,18 @@ lever needs pull-ups **and** a hollow body hold (Core).
   sets worked close to your limit, 2–3 minutes for advanced and weighted ones, with +15 s and *Skip rest*.
   An announcer reads it out ("Time to do Push-up for 12 reps", "Rest for 2 minutes. Next up: …") and counts
   3, 2, 1 into every timer and at the end of each set and rest. Mute it with the speaker button during the
-  workout or turn it off in Settings; demo videos can be turned off too. Finished exercises are logged and
-  drills ticked off as you go. *Show list* switches to the list, where you can log exercises with one tap
-  ("Done as planned") or different numbers, and start the guided workout from any item.
+  workout or turn it off in Settings; demo videos can be turned off too. Got fewer (or more) reps than planned?
+  Tap − or + before *Done*, and that set is logged as you did it. While resting, *Your sets* lists the sets so
+  far, so you can still fix one (e.g. you tapped Done but only got 9). While resting, the next set's name and
+  reps (or time) show under *Up next*. Exercise too hard today? *Too hard? Switch to …* swaps it for the step
+  below it in its progression (e.g. Scapular Pull → Assisted Scapular Pull, with your feet taking some weight),
+  planned from your history, and *Back to …* switches back. Finished exercises are logged and drills ticked off as you go. *Show
+  list* switches to the list, where you can log exercises with one tap ("Done as planned") or set by set
+  ("Log each set"), *Edit* what you logged, switch an exercise for an easier one, and start the guided workout
+  from any item.
+- **How was this workout?** When you finish, pick *Easy*, *Just right* or *Too hard*. After Easy or Too hard,
+  tick the exercises to change: their next session gets more reps (or weight), or fewer. History shows how
+  each workout felt.
 - **Daily mobility:** five short follow-along routines (7–9 minutes) to loosen up and start the day:
   a *Morning Wake-up Flow* (head to toe), *Upper Back & Thoracic Spine* (rotations, extension over a chair,
   neck half circles), *Shoulder Mobility* (circles, shoulder CARs, dislocates, chest and lat stretches),
@@ -116,11 +129,13 @@ lever needs pull-ups **and** a hollow body hold (Core).
   calorie burn and that day's weigh-in. It also shows your best streak and this month's totals.
 - **Calories:** every workout shows an estimate before you start, a running total while you train, and
   saves the estimate when you finish. It uses standard MET values and your logged body weight.
-- **Body weight:** log your weight, set a goal and follow a progress bar toward it. Choose lb or kg in
-  Settings.
-- **Weight fluctuation (History):** a chart of every weigh-in with a 7-day average trend line and your goal,
-  plus bars showing how much your weight changed between weigh-ins. Pick 30 days, 3 months, 1 year or all
-  time. It also shows the overall change, low and high, typical swing and biggest swing, with a table view.
+- **Body weight:** log your weight for today or any earlier day (one weigh-in per day; logging a day again
+  updates it), set a goal and follow a progress bar toward it. Choose lb or kg in Settings.
+- **Weight fluctuation (History):** a chart with a point for every weigh-in, a 7-day average trend line and
+  your goal, plus bars showing how much your weight changed between weigh-ins. Pick 30 days, 3 months, 1 year
+  or all time (a period never starts before your first weigh-in, and logging an older day widens it to show
+  that point). It also shows the overall change, low and high, typical swing and biggest swing, with a table
+  view.
 - **Rep growth (History):** see how your reps, hold times or added weight have moved on recently trained
   exercises.
 - **Goals:** pick up to 5 from any skill's details. Their full path is highlighted in gold, and generated
@@ -158,9 +173,10 @@ A native Android and iOS app built with [Expo](https://expo.dev) (React Native),
 
 - **Today:** today's workout in a big card with a Start button, your streak, the areas you train and a
   length picker showing the estimated time.
-- **Guided workout:** a full-screen player with a big rep count or countdown, a REST screen with "+15 s",
-  "Skip rest" and what's up next, and a voice coach that reads it all out. The screen stays on, and finished
-  exercises are logged automatically.
+- **Guided workout:** a full-screen player with a big rep count (− and + to log what you actually did) or
+  countdown, a REST screen with "+15 s", "Skip rest", your sets so far (each one fixable) and what's up next
+  with its reps, and a voice coach that reads it all out. The screen stays on, finished exercises are logged
+  automatically, and the end screen asks how the workout was.
 - **Skills:** every tree, its progressions as ladders, and each exercise's plan, logger, history, cues and
   how-to video.
 - **History** and **Me** (Google Drive sync, units, voice coach, reminders, reset).
@@ -265,9 +281,10 @@ My Drive/
       2026-10-18 Push + Pull.json       …named after that day's workout
 ```
 
-Each day file is readable JSON: the workout(s) you started (with the calorie estimate once finished), every
-set you logged (exercise name, sets, reps or seconds, any added weight, and what was planned) and that day's
-weigh-in. Weights are in kg. Files are tracked by hidden app properties, so renaming or moving
+Each day file is readable JSON: the workout(s) you started (with the calorie estimate and how it felt once
+finished), every set you logged (exercise name, sets, reps or seconds, each set's reps when they differed in
+`perSet`, any added weight, what was planned, and `feel` if you said it was too easy or too hard) and that
+day's weigh-in. Weights are in kg. Files are tracked by hidden app properties, so renaming or moving
 them in Drive is fine. Edits you make to them are picked up on the next sync. Days you delete in the app
 go to the Drive trash.
 
@@ -362,6 +379,7 @@ packages/core/        @ascent/core: shared by both apps (plain TypeScript, no br
     guided.ts         Turns a started workout or a routine into guided steps (sets, sides, rest) and announcer lines
     routines.ts       Which routines were done when, and today's suggested routine
     history.ts        Per-day summaries, streaks, rep growth, body-weight goal progress
+    sets.ts           Sessions whose sets differed (10, 9, 8): each set, totals and the average set
     calories.ts       Calorie estimates (MET values × body weight × time)
     units.ts          lb/kg conversion and plate rounding (weights are stored in kg)
   cloud/

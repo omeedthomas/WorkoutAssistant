@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { restoreActiveWorkout, snapshot, type ActiveExercise, type ActiveWorkout } from '@ascent/core/state/activeWorkout';
+import { restoreActiveWorkout, snapshot, swapExercise, type ActiveExercise, type ActiveWorkout } from '@ascent/core/state/activeWorkout';
+import type { ProgressState } from '@ascent/core/state/progress';
 import type { Workout } from '@ascent/core/lib/workout';
 
 export * from '@ascent/core/state/activeWorkout';
@@ -70,5 +71,7 @@ export function useActiveWorkout() {
     setGuided: (guided: boolean, position?: number) =>
       setActive((w) => w && { ...w, guided, ...(position !== undefined && { position }) }),
     setPosition: (position: number) => setActive((w) => (w && w.position !== position ? { ...w, position } : w)),
+    /** Switches an exercise not logged yet for another (an easier step, or back), planned from `state`. */
+    swap: (fromId: string, toId: string, state: ProgressState) => setActive((w) => w && swapExercise(w, fromId, toId, state)),
   };
 }

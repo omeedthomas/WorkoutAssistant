@@ -1,6 +1,16 @@
 import { exerciseById, type Unit } from '../data';
 import type { Units } from '../lib/units';
-import { localDay, type ProgressState, type OwnedEquipment, type WeighIn, type WeightGoal, type Work, type WorkoutPlan, type WorkoutRecord } from '../state/progress';
+import {
+  localDay,
+  type Feel,
+  type ProgressState,
+  type OwnedEquipment,
+  type WeighIn,
+  type WeightGoal,
+  type Work,
+  type WorkoutPlan,
+  type WorkoutRecord,
+} from '../state/progress';
 import { stable } from './merge';
 import type { CloudDocs, SaveOps } from './types';
 
@@ -38,12 +48,19 @@ export interface DaySession {
   exercise: string;
   name: string;
   sets: number;
+  /** Per set; the lowest set when they differed. */
   value: number;
+  /** Each set, when they differed, e.g. [10, 9, 8]. */
+  perSet?: number[];
   unit: Unit;
   perSide?: boolean;
   /** Weighted exercises: added weight in kg. */
   addedKg?: number;
   planned?: Work;
+  /** Said to be too easy or too hard after the workout. */
+  feel?: Feel;
+  /** When the numbers or the feel were last changed (ISO). */
+  edited?: string;
 }
 
 export interface DayDoc {
@@ -91,10 +108,13 @@ export function toDocs(state: ProgressState): CloudDocs {
         name: ex?.name ?? id,
         sets: l.sets,
         value: l.value,
+        ...(l.perSet && { perSet: l.perSet }),
         unit: ex?.target.unit ?? 'reps',
         ...(ex?.target.perSide && { perSide: true }),
         ...(l.addedKg !== undefined && { addedKg: l.addedKg }),
         ...(l.planned && { planned: l.planned }),
+        ...(l.feel && { feel: l.feel }),
+        ...(l.edited && { edited: l.edited }),
       };
       sessions.set(day, [...(sessions.get(day) ?? []), s]);
     }
@@ -125,7 +145,18 @@ export function fromDocs(docs: CloudDocs): unknown {
   const progress = isRecord(docs[PROGRESS_KEY]) ? docs[PROGRESS_KEY] : {};
   const logs: Record<
     string,
-    { id: unknown; date: unknown; day: string; sets: unknown; value: unknown; addedKg?: unknown; planned?: unknown }[]
+    {
+      id: unknown;
+      date: unknown;
+      day: string;
+      sets: unknown;
+      value: unknown;
+      perSet?: unknown;
+      addedKg?: unknown;
+      planned?: unknown;
+      feel?: unknown;
+      edited?: unknown;
+    }[]
   > = {};
   const workouts: Record<string, unknown[]> = {};
   const weight: Record<string, unknown> = {};
@@ -146,8 +177,11 @@ export function fromDocs(docs: CloudDocs): unknown {
         day,
         sets: s.sets,
         value: s.value,
+        ...(s.perSet !== undefined && { perSet: s.perSet }),
         ...(s.addedKg !== undefined && { addedKg: s.addedKg }),
         ...(isRecord(s.planned) && { planned: s.planned }),
+        ...(s.feel !== undefined && { feel: s.feel }),
+        ...(s.edited !== undefined && { edited: s.edited }),
       });
     }
   }

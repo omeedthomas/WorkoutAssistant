@@ -90,13 +90,16 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  label,
 }: {
   options: { value: T; label: string; hint?: string }[];
-  value: T;
+  /** Null until something is picked. */
+  value: T | null;
   onChange: (v: T) => void;
+  label?: string;
 }) {
   return (
-    <View style={styles.segmented} role="radiogroup">
+    <View style={styles.segmented} role="radiogroup" aria-label={label}>
       {options.map((o) => {
         const on = o.value === value;
         return (

@@ -259,7 +259,8 @@
 }
 
 .plan-tag--progress,
-.plan-tag--add-set {
+.plan-tag--add-set,
+.plan-tag--harder {
   background: color-mix(in srgb, var(--success) 16%, transparent);
   color: var(--success);
 }
@@ -398,6 +399,24 @@
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+/* One stepper per set. */
+.sets-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.sets-editor__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.sets-editor__resize {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .stepper__label {

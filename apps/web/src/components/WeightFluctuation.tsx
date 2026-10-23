@@ -16,8 +16,16 @@ const RANGES = [
 const M = { top: 12, right: 12, bottom: 24, left: 46 };
 const TREND_H = 220;
 const CHANGE_H = 120;
-/** Past this many weigh-ins, individual dots crowd the line: draw them as a thin line instead. */
-const MAX_DOTS = 60;
+/** Weigh-ins closer together than this (px, on average) would merge into a smear: draw them as a thin line instead. */
+const MIN_DOT_SPACING = 5;
+
+/** The dot size for `count` weigh-ins across `plotW` px, or null to draw them as a line. */
+function dotRadius(count: number, plotW: number): number | null {
+  // A lone weigh-in is the whole story so far: draw it prominently.
+  if (count === 1) return 6;
+  const spacing = plotW / count;
+  return spacing < MIN_DOT_SPACING ? null : Math.min(5, Math.max(2.5, spacing / 3));
+}
 
 /** An element's width, kept current, so the charts draw at real size and their text stays legible on phones. */
 function useWidth<T extends HTMLElement>() {
@@ -48,6 +56,8 @@ function niceTicks(lo: number, hi: number, count = 4): number[] {
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+/** Axis labels: ticks can be a quarter apart (178.25), which `fmt` would round. */
+const tickFmt = (n: number) => String(Math.round(n * 100) / 100);
 
 /** Body weight over a chosen period: every weigh-in, the 7-day trend, and how much it changed each time. */
 export function WeightFluctuation() {
@@ -59,8 +69,25 @@ export function WeightFluctuation() {
   const [bodyRef, width] = useWidth<HTMLDivElement>();
 
   const all = useMemo(() => weightTrend(weightSeries(state)), [state]);
-  const start = range ? addDays(today, 1 - range) : (all[0]?.day ?? today);
+  // The period never starts before your first weigh-in, so a few days of them fill the chart
+  // instead of huddling at the right edge of three empty months.
+  const first = all[0]?.day ?? today;
+  const from = range ? addDays(today, 1 - range) : first;
+  const start = from < first ? first : from;
   const points = all.filter((p) => p.day >= start && p.day <= today);
+
+  // A weigh-in just logged for a day before the period widens it, so its point shows.
+  const newest = useMemo(
+    () => Object.entries(state.weight).reduce<{ day: string; at: string } | null>((a, [day, w]) => (a && a.at >= w.at ? a : { day, at: w.at }), null),
+    [state.weight],
+  );
+  const seen = useRef(newest?.at);
+  useEffect(() => {
+    if (!newest || newest.at === seen.current) return;
+    seen.current = newest.at;
+    const covers = (days: number) => !days || newest.day >= addDays(today, 1 - days);
+    setRange((r) => (covers(r) ? r : RANGES.find((x) => covers(x.days))!.days));
+  }, [newest, today]);
   const stats = weightStats(points);
   const goal = state.weightGoal ? toUnits(state.weightGoal.kg, units) : null;
 
@@ -75,6 +102,7 @@ export function WeightFluctuation() {
   const plotW = Math.max(0, width - M.left - M.right);
   const span = daysBetween(start, today);
   const x = (day: string) => M.left + (span > 0 ? (plotW * daysBetween(start, day)) / span : plotW / 2);
+  const dotR = dotRadius(points.length, plotW);
   const hasChanges = points.some((p) => p.change !== null);
   const nearest = (e: PointerEvent<SVGElement>) => {
     const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
@@ -159,7 +187,7 @@ export function WeightFluctuation() {
                 <div className="viz-legend small">
                   <strong>Weight</strong>
                   <span>
-                    <span className={`viz-key ${points.length > MAX_DOTS ? 'viz-key--raw' : 'viz-key--dot'}`} aria-hidden />{' '}
+                    <span className={`viz-key ${dotR === null ? 'viz-key--raw' : 'viz-key--dot'}`} aria-hidden />{' '}
                     {points.length === 1 ? 'Weigh-in' : 'Weigh-ins'}
                   </span>
                   {points.length > 1 && (
@@ -173,7 +201,19 @@ export function WeightFluctuation() {
                     </span>
                   )}
                 </div>
-                <TrendChart points={points} width={width} x={x} u={u} goal={goal} units={units} shown={shown} onMove={nearest} />
+                <TrendChart
+                  points={points}
+                  from={start}
+                  to={today}
+                  width={width}
+                  x={x}
+                  u={u}
+                  goal={goal}
+                  dotR={dotR}
+                  units={units}
+                  shown={shown}
+                  onMove={nearest}
+                />
 
                 {hasChanges ? (
                   <>
@@ -186,7 +226,7 @@ export function WeightFluctuation() {
                         <span className="viz-key viz-key--down" aria-hidden /> Down
                       </span>
                     </div>
-                    <ChangeChart points={points} width={width} x={x} u={u} units={units} shown={shown} onMove={nearest} />
+                    <ChangeChart points={points} from={start} to={today} width={width} x={x} u={u} units={units} shown={shown} onMove={nearest} />
                   </>
                 ) : (
                   <p className="muted small weight-fluct__note">
@@ -257,6 +297,9 @@ export function WeightFluctuation() {
 
 interface ChartProps {
   points: WeightPoint[];
+  /** The period shown, first and last day. */
+  from: string;
+  to: string;
   width: number;
   x: (day: string) => number;
   u: (kg: number) => number;
@@ -265,11 +308,9 @@ interface ChartProps {
   onMove: (e: PointerEvent<SVGElement>) => void;
 }
 
-/** Up to four evenly spaced date labels along the bottom, kept inside the chart at its edges. */
-function DateAxis({ points, x, y, width }: { points: WeightPoint[]; x: (day: string) => number; y: number; width: number }) {
-  const first = points[0].day;
-  const last = points[points.length - 1].day;
-  const days = [...new Set([0, 1, 2, 3].map((i) => addDays(first, Math.round((daysBetween(first, last) * i) / 3))))];
+/** Up to four date labels spread evenly across the period, kept inside the chart at its edges. */
+function DateAxis({ from, to, x, y, width }: { from: string; to: string; x: (day: string) => number; y: number; width: number }) {
+  const days = [...new Set([0, 1, 2, 3].map((i) => addDays(from, Math.round((daysBetween(from, to) * i) / 3))))];
   const anchor = (px: number) => (px < M.left + 30 ? 'start' : px > width - M.right - 30 ? 'end' : 'middle');
   return (
     <>
@@ -282,7 +323,7 @@ function DateAxis({ points, x, y, width }: { points: WeightPoint[]; x: (day: str
   );
 }
 
-function TrendChart({ points, width, x, u, goal, units, shown, onMove }: ChartProps & { goal: number | null }) {
+function TrendChart({ points, from, to, width, x, u, goal, dotR, units, shown, onMove }: ChartProps & { goal: number | null; dotR: number | null }) {
   const values = points.flatMap((p) => [u(p.kg), u(p.avg)]).concat(goal ?? []);
   const pad = Math.max(0.5, (Math.max(...values) - Math.min(...values)) * 0.1);
   const ticks = niceTicks(Math.min(...values) - pad, Math.max(...values) + pad);
@@ -306,7 +347,7 @@ function TrendChart({ points, width, x, u, goal, units, shown, onMove }: ChartPr
         <g key={t}>
           <line className="viz-grid" x1={M.left} x2={width - M.right} y1={y(t)} y2={y(t)} />
           <text className="viz-tick" x={M.left - 8} y={y(t) + 4} textAnchor="end">
-            {fmt(t)}
+            {tickFmt(t)}
           </text>
         </g>
       ))}
@@ -319,26 +360,24 @@ function TrendChart({ points, width, x, u, goal, units, shown, onMove }: ChartPr
         </>
       )}
       {shown && <line className="viz-crosshair" x1={x(shown.day)} x2={x(shown.day)} y1={M.top} y2={TREND_H - M.bottom} />}
-      {points.length > MAX_DOTS ? (
-        <path className="viz-raw" d={line('kg')} />
-      ) : (
-        // A lone weigh-in is the whole story so far: draw it prominently.
+      {dotR === null && <path className="viz-raw" d={line('kg')} />}
+      <path className="viz-trend" d={line('avg')} />
+      {/* Weigh-ins sit on top of the average line, so each one stays visible where they meet. */}
+      {dotR !== null &&
         points.map((p) => (
           <circle
             key={p.day}
             className={`viz-dot${points.length === 1 ? ' is-active' : ''}`}
             cx={x(p.day)}
             cy={y(u(p.kg))}
-            r={points.length === 1 ? 6 : 4}
+            r={dotR}
           />
-        ))
-      )}
-      <path className="viz-trend" d={line('avg')} />
-      {shown && <circle className="viz-dot is-active" cx={x(shown.day)} cy={y(u(shown.kg))} r={5} />}
+        ))}
+      {shown && <circle className="viz-dot is-active" cx={x(shown.day)} cy={y(u(shown.kg))} r={Math.max(6, (dotR ?? 0) + 1.5)} />}
       <text className="viz-label" x={Math.min(x(last.day) + 8, width - M.right)} y={y(u(last.avg)) - 8} textAnchor="end">
         {fmt(u(last.avg))} {units}
       </text>
-      <DateAxis points={points} x={x} y={TREND_H - 4} width={width} />
+      <DateAxis from={from} to={to} x={x} y={TREND_H - 4} width={width} />
     </svg>
   );
 }
@@ -354,15 +393,16 @@ function barPath(cx: number, y0: number, y1: number, w: number) {
     : `M${l},${y0} V${y1 - r} Q${l},${y1} ${l + r},${y1} H${R - r} Q${R},${y1} ${R},${y1 - r} V${y0} Z`;
 }
 
-function ChangeChart({ points, width, x, u, units, shown, onMove }: ChartProps) {
+function ChangeChart({ points, from, to, width, x, u, units, shown, onMove }: ChartProps) {
   const changes = points.filter((p) => p.change !== null);
   const biggest = Math.max(0.5, ...changes.map((p) => Math.abs(u(p.change!))));
   const top = niceTicks(0, biggest, 2).find((t) => t >= biggest) ?? biggest;
   const mid = M.top + (CHANGE_H - M.top - M.bottom) / 2;
   const half = (CHANGE_H - M.top - M.bottom) / 2;
   const y = (v: number) => mid - (v / top) * half;
-  const plotW = width - M.left - M.right;
-  const bw = Math.max(2, Math.min(18, (plotW / Math.max(1, points.length)) * 0.6));
+  // As wide as the closest pair of weigh-ins allows, so bars for back-to-back days don't overlap.
+  const gaps = points.slice(1).map((p, i) => x(p.day) - x(points[i].day));
+  const bw = Math.max(2, Math.min(18, Math.min(width - M.left - M.right, ...gaps) * 0.6));
   const ups = changes.filter((p) => p.change! > 0).length;
 
   return (
@@ -380,7 +420,7 @@ function ChangeChart({ points, width, x, u, units, shown, onMove }: ChartProps) 
           <line className="viz-grid" x1={M.left} x2={width - M.right} y1={y(t)} y2={y(t)} />
           <text className="viz-tick" x={M.left - 8} y={y(t) + 4} textAnchor="end">
             {t > 0 ? '+' : '−'}
-            {fmt(Math.abs(t))}
+            {tickFmt(Math.abs(t))}
           </text>
         </g>
       ))}
@@ -400,7 +440,7 @@ function ChangeChart({ points, width, x, u, units, shown, onMove }: ChartProps) 
           />
         );
       })}
-      <DateAxis points={points} x={x} y={CHANGE_H - 4} width={width} />
+      <DateAxis from={from} to={to} x={x} y={CHANGE_H - 4} width={width} />
     </svg>
   );
 }

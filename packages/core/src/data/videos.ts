@@ -21,6 +21,8 @@ export const videos: Record<string, ExerciseVideo> = {
   'archer-pullup': { youtubeId: 'AeBvpCCYpGI', title: 'Archer pull up technique', channel: 'Summerfunfitness' },
   'archer-pushup': { youtubeId: 'ZLWko5aP1FM', title: 'Archer Push Ups Tutorial | Progressions From Basic Push Ups', channel: 'Minus The Gym' },
   'archer-row': { youtubeId: '2kB0Kpz_9Zo', title: 'Archer Bodyweight Row', channel: 'Chase Mountains' },
+  'assisted-pullup': { youtubeId: 'B_VkNQS5YLs', title: 'How to do a Band Assisted Pull-Up | Proper Form & Technique | NASM', channel: 'National Academy of Sports Medicine (NASM)' },
+  'assisted-scapular-pull': { youtubeId: 'AHsmKp5AK6k', title: 'Foot Assisted Scapular Pull Up Demo', channel: 'Steph Gaudreau - Fuel Your Strength' },
   'assisted-squat': { youtubeId: 'R4q_G-qb6jM', title: 'Assisted Squats: WAY More Useful Than You Think!', channel: 'K boges' },
   'australian-row': { youtubeId: '5Vy6mjhXg7s', title: 'Inverted Row/Australian Pull-Up | Easy 1 Minute Tutorial', channel: 'Danny Matranga' },
   'baby-freeze': { youtubeId: 'ba_wvw-I8jU', title: 'BABY FREEZE TUTORIAL | Beginner Breaking Lesson | Learn to Breakdance', channel: 'Simonster Strength' },
